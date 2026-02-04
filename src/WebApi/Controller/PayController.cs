@@ -216,19 +216,33 @@ namespace WebApi.Controller
             {
                 Logger.Info($"收到支付宝回调: {request.out_trade_no}, 状态:{request.trade_status}");
 
-                // 验证签名
+                // 1. 验证签名
                 if (!VerifyAlipaySign(request, Request.Form))
                 {
                     Logger.Warn($"支付宝回调签名验证失败: {request.out_trade_no}");
                     return Content("fail");
                 }
 
-                // 验证AppId
+                // 2. 验证AppId
                 var appId = Request.Form["app_id"].ToString();
                 if (!string.IsNullOrEmpty(AlipayAppId) && appId != AlipayAppId)
                 {
                     Logger.Warn($"支付宝AppId不匹配: {appId} != {AlipayAppId}");
                     return Content("fail");
+                }
+
+                // 3. 验证订单金额
+                if (!await VerifyOrderAmountAsync(request.out_trade_no, request.total_amount))
+                {
+                    Logger.Error($"订单金额不匹配: {request.out_trade_no}, 回调金额: {request.total_amount}");
+                    return Content("fail");
+                }
+
+                // 4. 防重放检查
+                if (await IsOrderProcessedAsync(request.out_trade_no))
+                {
+                    Logger.Info($"订单已处理，忽略重复回调: {request.out_trade_no}");
+                    return Content("success");
                 }
 
                 if (request.trade_status == "TRADE_SUCCESS" || request.trade_status == "TRADE_FINISHED")
@@ -253,6 +267,44 @@ namespace WebApi.Controller
             {
                 Logger.Error(ex, "支付宝回调处理失败");
                 return Content("fail");
+            }
+        }
+
+        /// <summary>
+        /// 验证订单金额
+        /// </summary>
+        private async Task<bool> VerifyOrderAmountAsync(string orderNo, string callbackAmount)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(callbackAmount)) return true; // 无金额参数跳过
+
+                var orderAmount = await _shopService.GetOrderAmountAsync(orderNo);
+                if (orderAmount <= 0) return false; // 订单不存在
+
+                if (!decimal.TryParse(callbackAmount, out var amount)) return false;
+
+                // 允许0.01误差
+                return Math.Abs(orderAmount - amount) < 0.01m;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 检查订单是否已处理（防重放）
+        /// </summary>
+        private async Task<bool> IsOrderProcessedAsync(string orderNo)
+        {
+            try
+            {
+                return await _shopService.IsOrderPaidAsync(orderNo);
+            }
+            catch
+            {
+                return false;
             }
         }
 
@@ -298,6 +350,21 @@ namespace WebApi.Controller
                 {
                     Logger.Warn($"微信商户号不匹配: {mchId} != {WechatMchId}");
                     return Content("<xml><return_code><![CDATA[FAIL]]></return_code><return_msg><![CDATA[商户号不匹配]]></return_msg></xml>", "application/xml");
+                }
+
+                // 验证订单金额（微信单位为分）
+                var orderAmount = await _shopService.GetOrderAmountAsync(request.out_trade_no);
+                if (orderAmount > 0 && Math.Abs(orderAmount * 100 - request.total_fee) > 1)
+                {
+                    Logger.Error($"微信订单金额不匹配: {request.out_trade_no}, 订单金额:{orderAmount}元, 回调金额:{request.total_fee}分");
+                    return Content("<xml><return_code><![CDATA[FAIL]]></return_code><return_msg><![CDATA[金额不匹配]]></return_msg></xml>", "application/xml");
+                }
+
+                // 防重放检查
+                if (await IsOrderProcessedAsync(request.out_trade_no))
+                {
+                    Logger.Info($"订单已处理，忽略重复回调: {request.out_trade_no}");
+                    return Content("<xml><return_code><![CDATA[SUCCESS]]></return_code><return_msg><![CDATA[OK]]></return_msg></xml>", "application/xml");
                 }
 
                 if (request.return_code == "SUCCESS" && request.result_code == "SUCCESS")

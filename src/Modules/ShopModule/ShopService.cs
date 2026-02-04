@@ -337,6 +337,16 @@ namespace ShopModule
             return await _repository.IsFirstRechargeAsync(accountId);
         }
 
+        public async Task<decimal> GetOrderAmountAsync(string orderNo)
+        {
+            return await _repository.GetOrderAmountAsync(orderNo);
+        }
+
+        public async Task<bool> IsOrderPaidAsync(string orderNo)
+        {
+            return await _repository.IsOrderPaidAsync(orderNo);
+        }
+
         #endregion
 
         #region 礼包码

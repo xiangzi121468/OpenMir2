@@ -490,6 +490,35 @@ namespace ShopModule.Repository
             return count == 0;
         }
 
+        public async Task<decimal> GetOrderAmountAsync(string orderNo)
+        {
+            using var conn = CreateConnection();
+            await conn.OpenAsync();
+
+            using var cmd = new MySqlCommand(
+                "SELECT Amount FROM recharge_records WHERE OrderNo=@OrderNo", conn);
+            cmd.Parameters.AddWithValue("@OrderNo", orderNo);
+
+            var result = await cmd.ExecuteScalarAsync();
+            return result != null ? Convert.ToDecimal(result) : 0;
+        }
+
+        public async Task<bool> IsOrderPaidAsync(string orderNo)
+        {
+            using var conn = CreateConnection();
+            await conn.OpenAsync();
+
+            using var cmd = new MySqlCommand(
+                "SELECT Status FROM recharge_records WHERE OrderNo=@OrderNo", conn);
+            cmd.Parameters.AddWithValue("@OrderNo", orderNo);
+
+            var result = await cmd.ExecuteScalarAsync();
+            if (result == null) return false;
+
+            var status = Convert.ToInt32(result);
+            return status == (int)RechargeStatus.Paid || status == (int)RechargeStatus.Delivered;
+        }
+
         private RechargeRecord ReadRechargeRecord(MySqlDataReader reader)
         {
             return new RechargeRecord

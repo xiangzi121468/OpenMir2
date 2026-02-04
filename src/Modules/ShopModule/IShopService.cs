@@ -109,6 +109,16 @@ namespace ShopModule
         /// </summary>
         Task<bool> IsFirstRechargeAsync(string accountId);
 
+        /// <summary>
+        /// 获取订单金额
+        /// </summary>
+        Task<decimal> GetOrderAmountAsync(string orderNo);
+
+        /// <summary>
+        /// 检查订单是否已支付
+        /// </summary>
+        Task<bool> IsOrderPaidAsync(string orderNo);
+
         #endregion
 
         #region 礼包码

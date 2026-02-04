@@ -10,10 +10,10 @@ using WebApi.Admin.Models;
 namespace WebApi.Admin.Controllers
 {
     /// <summary>
-    /// 数据统计
+    /// 数据统计API
     /// </summary>
     [ApiController]
-    [Route("api/admin/[controller]")]
+    [Route("api/admin/stats")]
     public class StatsController : AdminBaseController
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
@@ -26,76 +26,176 @@ namespace WebApi.Admin.Controllers
         }
 
         /// <summary>
-        /// 仪表盘概览
+        /// 获取总览数据
         /// </summary>
-        [HttpGet("dashboard")]
-        public async Task<IActionResult> GetDashboard()
+        [HttpGet("overview")]
+        public async Task<IActionResult> GetOverview()
         {
             try
             {
                 using var conn = new MySqlConnection(_connectionString);
                 await conn.OpenAsync();
 
-                // 总账号数
-                using var accountCmd = new MySqlCommand("SELECT COUNT(*) FROM account", conn);
-                int totalAccounts = Convert.ToInt32(await accountCmd.ExecuteScalarAsync());
+                var result = new OverviewStats();
+
+                // 总注册用户数
+                using (var cmd = new MySqlCommand("SELECT COUNT(*) FROM accounts", conn))
+                    result.TotalAccounts = Convert.ToInt32(await cmd.ExecuteScalarAsync());
 
                 // 总角色数
-                using var charCmd = new MySqlCommand("SELECT COUNT(*) FROM characters WHERE Deleted=0", conn);
-                int totalCharacters = Convert.ToInt32(await charCmd.ExecuteScalarAsync());
+                using (var cmd = new MySqlCommand("SELECT COUNT(*) FROM characters WHERE Deleted=0", conn))
+                    result.TotalCharacters = Convert.ToInt32(await cmd.ExecuteScalarAsync());
 
                 // 今日新增账号
-                using var newAccountCmd = new MySqlCommand(
-                    "SELECT COUNT(*) FROM account WHERE DATE(CREATEDATE)=CURDATE()", conn);
-                int newAccounts = Convert.ToInt32(await newAccountCmd.ExecuteScalarAsync());
+                using (var cmd = new MySqlCommand("SELECT COUNT(*) FROM accounts WHERE DATE(CreateDate)=CURDATE()", conn))
+                    result.TodayNewAccounts = Convert.ToInt32(await cmd.ExecuteScalarAsync());
 
-                // 今日新增角色
-                using var newCharCmd = new MySqlCommand(
-                    "SELECT COUNT(*) FROM characters WHERE DATE(CREATEDATE)=CURDATE()", conn);
-                int newCharacters = Convert.ToInt32(await newCharCmd.ExecuteScalarAsync());
+                // 今日活跃（有登录记录）
+                using (var cmd = new MySqlCommand("SELECT COUNT(DISTINCT AccountId) FROM player_login_logs WHERE DATE(CreateTime)=CURDATE() AND LoginType='login'", conn))
+                    result.TodayActiveAccounts = Convert.ToInt32(await cmd.ExecuteScalarAsync());
 
-                // 今日充值
-                using var rechargeCmd = new MySqlCommand(@"
-                    SELECT COALESCE(COUNT(*),0) as Count, COALESCE(SUM(Amount),0) as Amount 
-                    FROM recharge_records WHERE STATUS IN (1,2) AND DATE(CreateTime)=CURDATE()", conn);
-                using var rechargeReader = await rechargeCmd.ExecuteReaderAsync();
-                await rechargeReader.ReadAsync();
-                int todayRechargeCount = rechargeReader.GetInt32(0);
-                decimal todayRechargeAmount = rechargeReader.GetDecimal(1);
-                rechargeReader.Close();
+                // 今日充值金额
+                using (var cmd = new MySqlCommand("SELECT COALESCE(SUM(Amount),0) FROM recharge_records WHERE DATE(CreateTime)=CURDATE() AND Status IN (1,2)", conn))
+                    result.TodayRechargeAmount = Convert.ToDecimal(await cmd.ExecuteScalarAsync());
 
-                // 今日商城销售
-                using var shopCmd = new MySqlCommand(@"
-                    SELECT COALESCE(COUNT(*),0) as Count, COALESCE(SUM(TotalPrice),0) as Amount 
-                    FROM shop_orders WHERE Status=1 AND DATE(CreateTime)=CURDATE()", conn);
-                using var shopReader = await shopCmd.ExecuteReaderAsync();
-                await shopReader.ReadAsync();
-                int todayShopOrders = shopReader.GetInt32(0);
-                int todayShopSales = shopReader.GetInt32(1);
-                shopReader.Close();
+                // 今日充值笔数
+                using (var cmd = new MySqlCommand("SELECT COUNT(*) FROM recharge_records WHERE DATE(CreateTime)=CURDATE() AND Status IN (1,2)", conn))
+                    result.TodayRechargeCount = Convert.ToInt32(await cmd.ExecuteScalarAsync());
 
-                return Ok(ApiResult.Success(new
-                {
-                    totalAccounts,
-                    totalCharacters,
-                    newAccounts,
-                    newCharacters,
-                    todayRecharge = new { count = todayRechargeCount, amount = todayRechargeAmount },
-                    todayShop = new { orders = todayShopOrders, sales = todayShopSales },
-                    onlinePlayers = 0 // 需要从游戏服务器获取
-                }));
+                // 总充值金额
+                using (var cmd = new MySqlCommand("SELECT COALESCE(SUM(Amount),0) FROM recharge_records WHERE Status IN (1,2)", conn))
+                    result.TotalRechargeAmount = Convert.ToDecimal(await cmd.ExecuteScalarAsync());
+
+                // 付费用户数
+                using (var cmd = new MySqlCommand("SELECT COUNT(DISTINCT AccountId) FROM recharge_records WHERE Status IN (1,2)", conn))
+                    result.PayingUsers = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+
+                return Ok(ApiResult.Success(result));
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, "获取仪表盘数据失败");
+                Logger.Error(ex, "获取总览数据失败");
                 return Ok(ApiResult.Fail("查询失败"));
             }
         }
 
         /// <summary>
-        /// 玩家等级分布
+        /// 获取趋势数据
         /// </summary>
-        [HttpGet("level-distribution")]
+        [HttpGet("trend")]
+        public async Task<IActionResult> GetTrend([FromQuery] int days = 7)
+        {
+            if (days > 90) days = 90;
+
+            try
+            {
+                using var conn = new MySqlConnection(_connectionString);
+                await conn.OpenAsync();
+
+                var trendData = new List<DailyStats>();
+
+                for (int i = days - 1; i >= 0; i--)
+                {
+                    var date = DateTime.Today.AddDays(-i);
+                    var dateStr = date.ToString("yyyy-MM-dd");
+
+                    var stats = new DailyStats { Date = dateStr };
+
+                    // 新增账号
+                    using (var cmd = new MySqlCommand($"SELECT COUNT(*) FROM accounts WHERE DATE(CreateDate)='{dateStr}'", conn))
+                        stats.NewAccounts = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+
+                    // 活跃账号
+                    using (var cmd = new MySqlCommand($"SELECT COUNT(DISTINCT AccountId) FROM player_login_logs WHERE DATE(CreateTime)='{dateStr}' AND LoginType='login'", conn))
+                        stats.ActiveAccounts = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+
+                    // 充值金额
+                    using (var cmd = new MySqlCommand($"SELECT COALESCE(SUM(Amount),0) FROM recharge_records WHERE DATE(CreateTime)='{dateStr}' AND Status IN (1,2)", conn))
+                        stats.RechargeAmount = Convert.ToDecimal(await cmd.ExecuteScalarAsync());
+
+                    // 充值笔数
+                    using (var cmd = new MySqlCommand($"SELECT COUNT(*) FROM recharge_records WHERE DATE(CreateTime)='{dateStr}' AND Status IN (1,2)", conn))
+                        stats.RechargeCount = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+
+                    // 新增付费用户
+                    using (var cmd = new MySqlCommand($@"
+                        SELECT COUNT(DISTINCT AccountId) FROM recharge_records 
+                        WHERE DATE(CreateTime)='{dateStr}' AND Status IN (1,2)
+                        AND AccountId NOT IN (
+                            SELECT DISTINCT AccountId FROM recharge_records 
+                            WHERE CreateTime < '{dateStr}' AND Status IN (1,2)
+                        )", conn))
+                        stats.NewPayingUsers = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+
+                    trendData.Add(stats);
+                }
+
+                return Ok(ApiResult.Success(trendData));
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "获取趋势数据失败");
+                return Ok(ApiResult.Fail("查询失败"));
+            }
+        }
+
+        /// <summary>
+        /// 获取充值排行
+        /// </summary>
+        [HttpGet("recharge/rank")]
+        public async Task<IActionResult> GetRechargeRank([FromQuery] int limit = 20, [FromQuery] string period = "all")
+        {
+            try
+            {
+                using var conn = new MySqlConnection(_connectionString);
+                await conn.OpenAsync();
+
+                var where = period switch
+                {
+                    "today" => "AND DATE(CreateTime)=CURDATE()",
+                    "week" => "AND CreateTime >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)",
+                    "month" => "AND CreateTime >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)",
+                    _ => ""
+                };
+
+                var sql = $@"
+                    SELECT AccountId, CharName, SUM(Amount) as TotalAmount, COUNT(*) as RechargeCount
+                    FROM recharge_records 
+                    WHERE Status IN (1,2) {where}
+                    GROUP BY AccountId, CharName
+                    ORDER BY TotalAmount DESC
+                    LIMIT {limit}";
+
+                using var cmd = new MySqlCommand(sql, conn);
+                using var reader = await cmd.ExecuteReaderAsync();
+
+                var list = new List<object>();
+                int rank = 1;
+                while (await reader.ReadAsync())
+                {
+                    list.Add(new
+                    {
+                        Rank = rank++,
+                        AccountId = reader.GetString("AccountId"),
+                        CharName = reader.IsDBNull(reader.GetOrdinal("CharName")) ? "" : reader.GetString("CharName"),
+                        TotalAmount = reader.GetDecimal("TotalAmount"),
+                        RechargeCount = reader.GetInt32("RechargeCount")
+                    });
+                }
+
+                return Ok(ApiResult.Success(list));
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "获取充值排行失败");
+                return Ok(ApiResult.Fail("查询失败"));
+            }
+        }
+
+        /// <summary>
+        /// 获取等级分布
+        /// </summary>
+        [HttpGet("level/distribution")]
         public async Task<IActionResult> GetLevelDistribution()
         {
             try
@@ -103,29 +203,33 @@ namespace WebApi.Admin.Controllers
                 using var conn = new MySqlConnection(_connectionString);
                 await conn.OpenAsync();
 
-                using var cmd = new MySqlCommand(@"
+                var sql = @"
                     SELECT 
                         CASE 
-                            WHEN Level BETWEEN 1 AND 20 THEN '1-20'
-                            WHEN Level BETWEEN 21 AND 40 THEN '21-40'
-                            WHEN Level BETWEEN 41 AND 60 THEN '41-60'
-                            WHEN Level BETWEEN 61 AND 80 THEN '61-80'
-                            WHEN Level BETWEEN 81 AND 100 THEN '81-100'
-                            ELSE '100+'
+                            WHEN Level < 10 THEN '1-9'
+                            WHEN Level < 20 THEN '10-19'
+                            WHEN Level < 30 THEN '20-29'
+                            WHEN Level < 40 THEN '30-39'
+                            WHEN Level < 50 THEN '40-49'
+                            WHEN Level < 60 THEN '50-59'
+                            ELSE '60+'
                         END as LevelRange,
                         COUNT(*) as Count
-                    FROM characters WHERE Deleted=0
+                    FROM characters 
+                    WHERE Deleted=0
                     GROUP BY LevelRange
-                    ORDER BY MIN(Level)", conn);
+                    ORDER BY MIN(Level)";
+
+                using var cmd = new MySqlCommand(sql, conn);
+                using var reader = await cmd.ExecuteReaderAsync();
 
                 var list = new List<object>();
-                using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
                     list.Add(new
                     {
-                        range = reader.GetString(0),
-                        count = reader.GetInt32(1)
+                        LevelRange = reader.GetString("LevelRange"),
+                        Count = reader.GetInt32("Count")
                     });
                 }
 
@@ -139,9 +243,9 @@ namespace WebApi.Admin.Controllers
         }
 
         /// <summary>
-        /// 职业分布
+        /// 获取职业分布
         /// </summary>
-        [HttpGet("job-distribution")]
+        [HttpGet("job/distribution")]
         public async Task<IActionResult> GetJobDistribution()
         {
             try
@@ -149,28 +253,31 @@ namespace WebApi.Admin.Controllers
                 using var conn = new MySqlConnection(_connectionString);
                 await conn.OpenAsync();
 
-                using var cmd = new MySqlCommand(@"
-                    SELECT Job, COUNT(*) as Count 
-                    FROM characters WHERE Deleted=0 
-                    GROUP BY Job", conn);
+                var sql = @"
+                    SELECT 
+                        CASE Job
+                            WHEN 0 THEN '战士'
+                            WHEN 1 THEN '法师'
+                            WHEN 2 THEN '道士'
+                            ELSE '未知'
+                        END as JobName,
+                        Job,
+                        COUNT(*) as Count
+                    FROM characters 
+                    WHERE Deleted=0
+                    GROUP BY Job";
+
+                using var cmd = new MySqlCommand(sql, conn);
+                using var reader = await cmd.ExecuteReaderAsync();
 
                 var list = new List<object>();
-                using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
-                    int job = reader.GetInt32(0);
-                    string jobName = job switch
-                    {
-                        0 => "战士",
-                        1 => "法师",
-                        2 => "道士",
-                        _ => $"未知({job})"
-                    };
                     list.Add(new
                     {
-                        job,
-                        name = jobName,
-                        count = reader.GetInt32(1)
+                        JobName = reader.GetString("JobName"),
+                        Job = reader.GetInt32("Job"),
+                        Count = reader.GetInt32("Count")
                     });
                 }
 
@@ -184,136 +291,182 @@ namespace WebApi.Admin.Controllers
         }
 
         /// <summary>
-        /// 新增趋势(近30天)
+        /// 获取留存率
         /// </summary>
-        [HttpGet("trend")]
-        public async Task<IActionResult> GetTrend([FromQuery] int days = 30)
+        [HttpGet("retention")]
+        public async Task<IActionResult> GetRetention([FromQuery] int days = 7)
         {
             try
             {
                 using var conn = new MySqlConnection(_connectionString);
                 await conn.OpenAsync();
 
-                var list = new List<object>();
+                var retentionData = new List<RetentionStats>();
 
-                // 生成日期范围
-                for (int i = days - 1; i >= 0; i--)
+                for (int i = days; i >= 1; i--)
                 {
-                    var date = DateTime.Today.AddDays(-i);
+                    var registerDate = DateTime.Today.AddDays(-i);
+                    var dateStr = registerDate.ToString("yyyy-MM-dd");
 
-                    // 新增账号
-                    using var accountCmd = new MySqlCommand(
-                        "SELECT COUNT(*) FROM account WHERE DATE(CREATEDATE)=@Date", conn);
-                    accountCmd.Parameters.AddWithValue("@Date", date);
-                    int newAccounts = Convert.ToInt32(await accountCmd.ExecuteScalarAsync());
+                    var stats = new RetentionStats { RegisterDate = dateStr };
 
-                    // 新增角色
-                    using var charCmd = new MySqlCommand(
-                        "SELECT COUNT(*) FROM characters WHERE DATE(CREATEDATE)=@Date", conn);
-                    charCmd.Parameters.AddWithValue("@Date", date);
-                    int newCharacters = Convert.ToInt32(await charCmd.ExecuteScalarAsync());
+                    // 当日注册数
+                    using (var cmd = new MySqlCommand($"SELECT COUNT(*) FROM accounts WHERE DATE(CreateDate)='{dateStr}'", conn))
+                        stats.RegisterCount = Convert.ToInt32(await cmd.ExecuteScalarAsync());
 
-                    // 充值金额
-                    using var rechargeCmd = new MySqlCommand(
-                        "SELECT COALESCE(SUM(Amount),0) FROM recharge_records WHERE Status IN (1,2) AND DATE(CreateTime)=@Date", conn);
-                    rechargeCmd.Parameters.AddWithValue("@Date", date);
-                    decimal rechargeAmount = Convert.ToDecimal(await rechargeCmd.ExecuteScalarAsync());
-
-                    list.Add(new
+                    if (stats.RegisterCount == 0)
                     {
-                        date = date.ToString("MM-dd"),
-                        newAccounts,
-                        newCharacters,
-                        rechargeAmount
-                    });
+                        retentionData.Add(stats);
+                        continue;
+                    }
+
+                    // 次日留存
+                    if (i >= 1)
+                    {
+                        var nextDay = registerDate.AddDays(1).ToString("yyyy-MM-dd");
+                        using var cmd = new MySqlCommand($@"
+                            SELECT COUNT(DISTINCT l.AccountId) FROM player_login_logs l
+                            JOIN accounts a ON l.AccountId = a.UserID
+                            WHERE DATE(a.CreateDate)='{dateStr}' AND DATE(l.CreateTime)='{nextDay}' AND l.LoginType='login'", conn);
+                        stats.Day1Retention = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                    }
+
+                    // 7日留存
+                    if (i >= 7)
+                    {
+                        var day7 = registerDate.AddDays(7).ToString("yyyy-MM-dd");
+                        using var cmd = new MySqlCommand($@"
+                            SELECT COUNT(DISTINCT l.AccountId) FROM player_login_logs l
+                            JOIN accounts a ON l.AccountId = a.UserID
+                            WHERE DATE(a.CreateDate)='{dateStr}' AND DATE(l.CreateTime)='{day7}' AND l.LoginType='login'", conn);
+                        stats.Day7Retention = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                    }
+
+                    retentionData.Add(stats);
                 }
 
-                return Ok(ApiResult.Success(list));
+                return Ok(ApiResult.Success(retentionData));
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, "获取趋势数据失败");
+                Logger.Error(ex, "获取留存率失败");
                 return Ok(ApiResult.Fail("查询失败"));
             }
         }
 
         /// <summary>
-        /// VIP分布
+        /// 获取在线时长分布
         /// </summary>
-        [HttpGet("vip-distribution")]
-        public async Task<IActionResult> GetVipDistribution()
+        [HttpGet("online/duration")]
+        public async Task<IActionResult> GetOnlineDuration([FromQuery] string date = null)
         {
+            var targetDate = string.IsNullOrEmpty(date) ? DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd") : date;
+
             try
             {
                 using var conn = new MySqlConnection(_connectionString);
                 await conn.OpenAsync();
 
-                using var cmd = new MySqlCommand(@"
-                    SELECT VipLevel, COUNT(*) as Count 
-                    FROM user_vip 
-                    GROUP BY VipLevel 
-                    ORDER BY VipLevel", conn);
+                var sql = $@"
+                    SELECT 
+                        CASE 
+                            WHEN OnlineSeconds < 300 THEN '<5分钟'
+                            WHEN OnlineSeconds < 1800 THEN '5-30分钟'
+                            WHEN OnlineSeconds < 3600 THEN '30-60分钟'
+                            WHEN OnlineSeconds < 7200 THEN '1-2小时'
+                            WHEN OnlineSeconds < 14400 THEN '2-4小时'
+                            ELSE '4小时+'
+                        END as DurationRange,
+                        COUNT(*) as Count
+                    FROM player_login_logs
+                    WHERE DATE(CreateTime)='{targetDate}' AND LoginType='logout'
+                    GROUP BY DurationRange
+                    ORDER BY MIN(OnlineSeconds)";
+
+                using var cmd = new MySqlCommand(sql, conn);
+                using var reader = await cmd.ExecuteReaderAsync();
 
                 var list = new List<object>();
-                using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
                     list.Add(new
                     {
-                        level = reader.GetInt32(0),
-                        count = reader.GetInt32(1)
+                        DurationRange = reader.GetString("DurationRange"),
+                        Count = reader.GetInt32("Count")
                     });
                 }
 
-                return Ok(ApiResult.Success(list));
+                return Ok(ApiResult.Success(new { date = targetDate, data = list }));
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, "获取VIP分布失败");
+                Logger.Error(ex, "获取在线时长分布失败");
                 return Ok(ApiResult.Fail("查询失败"));
             }
         }
 
         /// <summary>
-        /// 充值排行榜
+        /// 获取实时在线数据
         /// </summary>
-        [HttpGet("recharge-ranking")]
-        public async Task<IActionResult> GetRechargeRanking([FromQuery] int limit = 20)
+        [HttpGet("online/realtime")]
+        public async Task<IActionResult> GetRealtimeOnline()
         {
             try
             {
-                using var conn = new MySqlConnection(_connectionString);
-                await conn.OpenAsync();
-
-                using var cmd = new MySqlCommand($@"
-                    SELECT AccountId, SUM(Amount) as TotalAmount, SUM(GameGold+BonusGold) as TotalGold, COUNT(*) as Count
-                    FROM recharge_records WHERE Status IN (1,2)
-                    GROUP BY AccountId
-                    ORDER BY TotalAmount DESC
-                    LIMIT {limit}", conn);
-
-                var list = new List<object>();
-                int rank = 1;
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
+                // 这里应该从游戏服务器获取实时数据
+                // 暂时返回模拟数据
+                return Ok(ApiResult.Success(new
                 {
-                    list.Add(new
-                    {
-                        rank = rank++,
-                        accountId = reader.GetString(0),
-                        totalAmount = reader.GetDecimal(1),
-                        totalGold = reader.GetInt64(2),
-                        count = reader.GetInt32(3)
-                    });
-                }
-
-                return Ok(ApiResult.Success(list));
+                    CurrentOnline = 0,
+                    PeakToday = 0,
+                    PeakTime = "00:00",
+                    LastUpdate = DateTime.Now
+                }));
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, "获取充值排行失败");
+                Logger.Error(ex, "获取实时在线失败");
                 return Ok(ApiResult.Fail("查询失败"));
             }
         }
     }
+
+    #region 统计模型
+
+    public class OverviewStats
+    {
+        public int TotalAccounts { get; set; }
+        public int TotalCharacters { get; set; }
+        public int TodayNewAccounts { get; set; }
+        public int TodayActiveAccounts { get; set; }
+        public decimal TodayRechargeAmount { get; set; }
+        public int TodayRechargeCount { get; set; }
+        public decimal TotalRechargeAmount { get; set; }
+        public int PayingUsers { get; set; }
+        public decimal ARPU => TotalAccounts > 0 ? TotalRechargeAmount / TotalAccounts : 0;
+        public decimal ARPPU => PayingUsers > 0 ? TotalRechargeAmount / PayingUsers : 0;
+        public decimal PayRate => TotalAccounts > 0 ? (decimal)PayingUsers / TotalAccounts * 100 : 0;
+    }
+
+    public class DailyStats
+    {
+        public string Date { get; set; }
+        public int NewAccounts { get; set; }
+        public int ActiveAccounts { get; set; }
+        public decimal RechargeAmount { get; set; }
+        public int RechargeCount { get; set; }
+        public int NewPayingUsers { get; set; }
+    }
+
+    public class RetentionStats
+    {
+        public string RegisterDate { get; set; }
+        public int RegisterCount { get; set; }
+        public int Day1Retention { get; set; }
+        public int Day7Retention { get; set; }
+        public decimal Day1Rate => RegisterCount > 0 ? (decimal)Day1Retention / RegisterCount * 100 : 0;
+        public decimal Day7Rate => RegisterCount > 0 ? (decimal)Day7Retention / RegisterCount * 100 : 0;
+    }
+
+    #endregion
 }

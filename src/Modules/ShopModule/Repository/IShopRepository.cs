@@ -50,6 +50,16 @@ namespace ShopModule.Repository
         Task<bool> IsFirstRechargeAsync(string accountId);
 
         /// <summary>
+        /// 获取订单金额
+        /// </summary>
+        Task<decimal> GetOrderAmountAsync(string orderNo);
+
+        /// <summary>
+        /// 检查订单是否已支付
+        /// </summary>
+        Task<bool> IsOrderPaidAsync(string orderNo);
+
+        /// <summary>
         /// 增加玩家元宝（直接更新数据库）
         /// </summary>
         Task<bool> AddPlayerGameGoldAsync(string accountId, string charName, int gold);
