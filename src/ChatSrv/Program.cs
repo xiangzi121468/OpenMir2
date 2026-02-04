@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -17,7 +17,6 @@ namespace GameGate
     internal class Program
     {
         private static Logger LogService;
-        private static readonly PeriodicTimer _timer;
         private static readonly CancellationTokenSource CancellationToken = new CancellationTokenSource();
 
         private static async Task Main(string[] args)
@@ -126,56 +125,42 @@ namespace GameGate
             LogManager.Configuration.Reload();
         }
 
+        /// <summary>
+        /// 显示聊天服务状态
+        /// </summary>
         private static Task ShowServerStatus()
         {
-            return Task.CompletedTask;
-            /*ChanggeLogLevel(LogLevel.Off);
-            
-            _timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
-            var serverList = ServerManager.Instance.GetServerList();
+            // 显示聊天服务状态信息
             var table = new Table().Expand().BorderColor(Color.Grey);
-            table.AddColumn("[yellow]Id[/]");
-            table.AddColumn("[yellow]EndPoint[/]");
-            table.AddColumn("[yellow]Status[/]");
-            table.AddColumn("[yellow]Online[/]");
-            table.AddColumn("[yellow]Send[/]");
-            table.AddColumn("[yellow]Revice[/]");
-            table.AddColumn("[yellow]Total Send[/]");
-            table.AddColumn("[yellow]Total Revice[/]");
-            table.AddColumn("[yellow]Queue[/]");
-            table.AddColumn("[yellow]WorkThread[/]");
+            table.AddColumn("[yellow]Item[/]");
+            table.AddColumn("[yellow]Value[/]");
 
-            await AnsiConsole.Live(table)
-                 .AutoClear(true)
-                 .Overflow(VerticalOverflow.Crop)
-                 .Cropping(VerticalOverflowCropping.Bottom)
-                 .StartAsync(async ctx =>
-                 {
-                     foreach (var _ in Enumerable.Range(0, serverList.Length))
-                     {
-                         table.AddRow(new[] { new Markup("-"), new Markup("-"), new Markup("-"), new Markup("-"), new Markup("-"), new Markup("-"), new Markup("-") });
-                     }
+            // 添加服务状态信息
+            table.AddRow("[bold]Service[/]", "[green]ChatSrv[/]");
+            table.AddRow("[bold]Status[/]", "[green]Running[/]");
+            table.AddRow("[bold]Thread Count[/]", $"[blue]{ThreadPool.ThreadCount}[/]");
+            table.AddRow("[bold]Available Threads[/]", GetAvailableThreads());
+            table.AddRow("[bold]Memory Usage[/]", $"[blue]{GC.GetTotalMemory(false) / 1024 / 1024} MB[/]");
+            table.AddRow("[bold]Gen0 Collections[/]", $"[blue]{GC.CollectionCount(0)}[/]");
+            table.AddRow("[bold]Gen1 Collections[/]", $"[blue]{GC.CollectionCount(1)}[/]");
+            table.AddRow("[bold]Gen2 Collections[/]", $"[blue]{GC.CollectionCount(2)}[/]");
+            table.AddRow("[bold]Uptime[/]", $"[blue]{GetUptime()}[/]");
 
-                     while (await _timer.WaitForNextTickAsync(CancellationToken.Token))
-                     {
-                         Console.WriteLine("TODO ...");
-                         /*for (var i = 0; i < serverList.Length; i++)
-                         {
-                             var (endPoint, status, playCount, reviceTotal, sendTotal, totalrevice, totalSend, queueCount, threads) = serverList[i].GetStatus();
+            AnsiConsole.Write(table);
+            return Task.CompletedTask;
+        }
 
-                             table.UpdateCell(i, 0, $"[bold]{endPoint}[/]");
-                             table.UpdateCell(i, 1, $"[bold]{status}[/]");
-                             table.UpdateCell(i, 2, $"[bold]{playCount}[/]");
-                             table.UpdateCell(i, 3, $"[bold]{sendTotal}[/]");
-                             table.UpdateCell(i, 4, $"[bold]{reviceTotal}[/]");
-                             table.UpdateCell(i, 5, $"[bold]{totalSend}[/]");
-                             table.UpdateCell(i, 6, $"[bold]{totalrevice}[/]");
-                             table.UpdateCell(i, 7, $"[bold]{queueCount}[/]");
-                             table.UpdateCell(i, 8, $"[bold]{threads}[/]");
-                         }#1#
-                         ctx.Refresh();
-                     }
-                 });*/
+        private static string GetAvailableThreads()
+        {
+            ThreadPool.GetAvailableThreads(out int workerThreads, out int completionPortThreads);
+            return $"[blue]Worker: {workerThreads}, IO: {completionPortThreads}[/]";
+        }
+
+        private static readonly DateTime _startTime = DateTime.Now;
+        private static string GetUptime()
+        {
+            var uptime = DateTime.Now - _startTime;
+            return $"{(int)uptime.TotalHours}h {uptime.Minutes}m {uptime.Seconds}s";
         }
 
         private static void PrintUsage()

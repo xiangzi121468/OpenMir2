@@ -1,0 +1,109 @@
+; ============================================
+; 装备鉴定师 NPC脚本
+; 位置: 比奇城 (3,330,330)
+; 功能: 为玩家装备鉴定特殊属性
+; ============================================
+
+[@main]
+╔════════════════════════════════╗
+║     【装备鉴定师】             ║
+║                                ║
+║  我能为你的装备鉴定出特殊属性  ║
+║  不同等级的鉴定卷轴效果不同    ║
+║                                ║
+╚════════════════════════════════╝
+
+<普通鉴定/@appraisal1>     需要: 普通鉴定卷 + 10000金币
+<高级鉴定/@appraisal2>     需要: 高级鉴定卷 + 50000金币
+<极品鉴定/@appraisal3>     需要: 极品鉴定卷 + 200000金币
+<查看我的属性/@showattr>
+<离开/@exit>
+
+[@appraisal1]
+#IF
+CHECKITEM 普通鉴定卷 1
+CHECKGOLD 10000
+#ACT
+TAKE 普通鉴定卷 1
+TAKEGOLD 10000
+MOV M0 1
+GOTO @doappraisal
+#ELSESAY
+你需要 <普通鉴定卷> 和 10000金币才能进行普通鉴定。\ \
+<返回/@main>
+
+[@appraisal2]
+#IF
+CHECKITEM 高级鉴定卷 1
+CHECKGOLD 50000
+#ACT
+TAKE 高级鉴定卷 1
+TAKEGOLD 50000
+MOV M0 2
+GOTO @doappraisal
+#ELSESAY
+你需要 <高级鉴定卷> 和 50000金币才能进行高级鉴定。\ \
+<返回/@main>
+
+[@appraisal3]
+#IF
+CHECKITEM 极品鉴定卷 1
+CHECKGOLD 200000
+#ACT
+TAKE 极品鉴定卷 1
+TAKEGOLD 200000
+MOV M0 3
+GOTO @doappraisal
+#ELSESAY
+你需要 <极品鉴定卷> 和 200000金币才能进行极品鉴定。\ \
+<返回/@main>
+
+[@doappraisal]
+#IF
+CHECKUSEITEM 0
+#ACT
+; 调用鉴定系统
+; 这里需要后端实现 APPRAISE 脚本命令
+; APPRAISE <M0>
+SENDMSG 0 正在为你的武器进行鉴定...
+DELAYGOTO 2 @appraisalresult
+#ELSESAY
+你需要先装备武器才能进行鉴定！\ \
+<返回/@main>
+
+[@appraisalresult]
+#ACT
+; 简单随机模拟（实际应由后端AppraisalService处理）
+MOV M1 <$RANDOM>
+CALCVAR HUMAN M1 % 100
+#IF
+LARGE M1 20
+#ACT
+SENDMSG 5 鉴定成功！你的武器获得了新属性！
+#ELSESAY
+鉴定成功！\ \
+你的装备获得了新的特殊属性！\ \
+请使用 @鉴定查看 命令查看详情。\ \
+<返回/@main>
+
+#IF
+SMALL M1 21
+#ACT
+SENDMSG 5 鉴定失败，请下次再试。
+#ELSESAY
+很遗憾，鉴定失败了...\ \
+武器品质不够，无法附加属性。\ \
+建议使用幸运符提高成功率。\ \
+<返回/@main>
+
+[@showattr]
+#ACT
+SENDMSG 0 正在查询你的装备属性...
+#SAY
+【你的装备特殊属性】\ \
+查看装备详情请右键点击装备。\ \
+<返回/@main>
+
+[@exit]
+#ACT
+CLOSE

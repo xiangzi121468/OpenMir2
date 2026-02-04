@@ -124,6 +124,8 @@ namespace GameGate.Conf
             GateConfig.BlockIPMethod = (BlockIPMethod)ReadWriteInteger("Method", "BlockIPMethod", (int)GateConfig.BlockIPMethod);
             GateConfig.ChatFilterMethod = (ChatFilterMethod)ReadWriteInteger("Method", "ChatFilterMethod", (int)GateConfig.ChatFilterMethod);
             GateConfig.SpeedHackWarnMethod = (OverSpeedMsgMethod)ReadWriteInteger("Method", "SpeedHackWarnMethod", (int)GateConfig.SpeedHackWarnMethod);
+            GateConfig.AllocationMode = (ClientAllocationMode)ReadWriteInteger("Method", "AllocationMode", (int)GateConfig.AllocationMode);
+            GateConfig.MaxPlayersPerGate = ReadWriteInteger("Integer", "MaxPlayersPerGate", GateConfig.MaxPlayersPerGate);
             // Boolean
             GateConfig.CheckNullSession = ReadWriteBool("Switch", "CheckNullSession", GateConfig.CheckNullSession);
             GateConfig.IsOverSpeedSendBack = ReadWriteBool("Switch", "OverSpeedSendBack", GateConfig.IsOverSpeedSendBack);

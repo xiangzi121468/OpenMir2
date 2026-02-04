@@ -71,6 +71,10 @@ namespace GameSrv.DB
                         stdItem.ItemType = dr.GetByte("ITEMTYPE");
                         stdItem.ItemSet = dr.GetUInt16("ITEMSET");
                         stdItem.Reference = dr.GetString("REFERENCE");
+                        
+                        // 从Reference字段解析武器特效 (JSON格式: {"effect":100})
+                        stdItem.WeaponEffect = ParseWeaponEffect(stdItem.Reference);
+                        
                         if (SystemShare.ItemSystem.ItemCount <= idx)
                         {
                             SystemShare.ItemSystem.AddItem(stdItem);
@@ -396,6 +400,53 @@ namespace GameSrv.DB
                 _dbConnection.Close();
                 _dbConnection.Dispose();
             }
+        }
+        
+        /// <summary>
+        /// 从Reference字段解析武器特效类型
+        /// 支持JSON格式: {"effect":100} 或 {"WeaponEffect":100}
+        /// </summary>
+        private static byte ParseWeaponEffect(string reference)
+        {
+            if (string.IsNullOrWhiteSpace(reference))
+            {
+                return 0;
+            }
+            
+            try
+            {
+                // 尝试解析JSON
+                using var doc = JsonDocument.Parse(reference);
+                var root = doc.RootElement;
+                
+                // 支持多种字段名
+                if (root.TryGetProperty("effect", out var effectProp))
+                {
+                    return (byte)effectProp.GetInt32();
+                }
+                if (root.TryGetProperty("Effect", out effectProp))
+                {
+                    return (byte)effectProp.GetInt32();
+                }
+                if (root.TryGetProperty("WeaponEffect", out effectProp))
+                {
+                    return (byte)effectProp.GetInt32();
+                }
+                if (root.TryGetProperty("weaponEffect", out effectProp))
+                {
+                    return (byte)effectProp.GetInt32();
+                }
+            }
+            catch (JsonException)
+            {
+                // Reference不是有效JSON，忽略
+            }
+            catch (Exception ex)
+            {
+                LogService.Warn($"解析武器特效失败: {reference}, 错误: {ex.Message}");
+            }
+            
+            return 0;
         }
     }
 }

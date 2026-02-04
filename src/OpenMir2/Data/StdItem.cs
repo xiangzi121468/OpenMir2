@@ -1,4 +1,4 @@
-﻿namespace OpenMir2.Data
+namespace OpenMir2.Data
 {
     public class StdItem
     {
@@ -48,5 +48,11 @@
         public byte ItemType;
         public ushort ItemSet;
         public string Reference;
+        
+        /// <summary>
+        /// 武器特效类型 (100-249为自定义特效，对应客户端reserve[3])
+        /// 从Reference字段JSON解析或直接设置
+        /// </summary>
+        public byte WeaponEffect;
     }
 }

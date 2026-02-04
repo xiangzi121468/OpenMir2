@@ -442,9 +442,10 @@ namespace RobotSystem.Services
                         {
                             string sChrName = sMsg[..(nPos - 1)];
                             string sSendMsg = sMsg.Substring(nPos + 3 - 1, sMsg.Length - nPos - 2);
-                            Whisper(sChrName, "你猜我是谁.");
-                            //Whisper(sChrName, m_AISayMsgList[(SystemShare.RandomNumber.Random(m_AISayMsgList.Count)).Next()]);
-                            LogService.Error("TODO Hear...");
+                            // 从配置的消息列表中随机选择一条回复
+                            int randomIdx = SystemShare.RandomNumber.Random(AiSayMsgList.Count);
+                            string replyMsg = AiSayMsgList[randomIdx]?.ToString() ?? "你猜我是谁.";
+                            Whisper(sChrName, replyMsg);
                         }
                     }
                     break;

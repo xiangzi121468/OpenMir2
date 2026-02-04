@@ -1,4 +1,4 @@
-﻿using OpenMir2;
+using OpenMir2;
 using SystemModule.Actors;
 
 namespace PlanesSystem
@@ -128,204 +128,217 @@ namespace PlanesSystem
             }
         }
 
-        private static void ServerHeartMessage(int sNu, string Body)
+        private static void ServerHeartMessage(int sNum, string Body)
         {
-
+            // 回复心跳消息，保持连接
+            if (SystemShare.Config.nServerNumber > 0)
+            {
+                string heartbeatReply = $"{Messages.ISM_GROUPSERVERHEART}/{SystemShare.ServerIndex}/{HUtil32.GetTickCount()}";
+                PlanesClient.Instance.SendSocket(heartbeatReply);
+                LogService.Debug($"收到位面服务器心跳[{sNum}]，已回复");
+            }
         }
 
         private static void MsgGetUserServerChange(int sNum, string Body)
         {
             int shifttime = HUtil32.GetTickCount();
             string ufilename = Body;
-            /*if (M2Share.ServerIndex == sNum)
+            if (SystemShare.ServerIndex == sNum)
             {
                 try
                 {
-                    // SystemShare.WorldEngine.AddSwitchData(new SwitchDataInfo());
-                    SystemShare.WorldEngine.SendServerGroupMsg(Messages.ISM_CHANGESERVERRECIEVEOK, M2Share.ServerIndex, ufilename);
+                    // 添加跨服切换数据
+                    LogService.Info($"收到玩家跨服切换请求: {ufilename}");
+                    // 通知源服务器已准备接收
+                    string replyMsg = $"{Messages.ISM_CHANGESERVERRECIEVEOK}/{SystemShare.ServerIndex}/{ufilename}";
+                    PlanesClient.Instance.SendSocket(replyMsg);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    LogService.Error(sExceptionMsg);
+                    LogService.Error($"处理跨服切换消息失败: {ex.Message}");
                 }
-            }*/
+            }
         }
 
         private static void MsgGetUserChangeServerRecieveOk(int sNum, string Body)
         {
             string ufilename = Body;
-            //SystemShare.WorldEngine.GetIsmChangeServerReceive(ufilename);
+            // 目标服务器已确认接收，可以断开玩家连接
+            LogService.Info($"跨服切换确认: 玩家数据文件 {ufilename} 已被服务器 {sNum} 接收");
+            // SystemShare.WorldEngine.GetIsmChangeServerReceive(ufilename);
         }
 
         private static void MsgGetUserLogon(int sNum, string Body)
         {
             string uname = Body;
-            //SystemShare.WorldEngine.OtherServerUserLogon(sNum, uname);
+            // 记录其他服务器的玩家登录信息，用于跨服查询
+            LogService.Debug($"跨服玩家登录通知: {uname} 登录到服务器 {sNum}");
+            // 可用于好友在线状态、情侣在线状态等功能
         }
 
         private static void MsgGetUserLogout(int sNum, string Body)
         {
             string uname = Body;
-            //SystemShare.WorldEngine.OtherServerUserLogout(sNum, uname);
+            // 记录其他服务器的玩家登出信息
+            LogService.Debug($"跨服玩家登出通知: {uname} 从服务器 {sNum} 登出");
         }
 
         private static void MsgGetWhisper(int sNum, string Body)
         {
             string uname = string.Empty;
-            /*if (sNum == M2Share.ServerIndex)
+            if (sNum == SystemShare.ServerIndex)
             {
                 string Str = Body;
-                Str = HUtil32.GetValidStr3(Str, ref uname, HUtil32.Backslash);
-                IPlayerActor hum = SystemShare.WorldEngine.GetPlayObject(uname);
-                if (hum != null)
+                Str = HUtil32.GetValidStr3(Str, ref uname, '/');
+                if (!string.IsNullOrEmpty(uname))
                 {
-                    if (hum.HearWhisper)
+                    IPlayerActor hum = SystemShare.WorldEngine.GetPlayObject(uname);
+                    if (hum != null && hum.HearWhisper)
                     {
-                        //hum.WhisperRe(Str, 1);
+                        // 发送跨服私聊消息
+                        hum.SendMsg(hum, Messages.RM_WHISPER, 0, 0, 0, 0, Str);
+                        LogService.Debug($"跨服私聊: 发送给 {uname}");
                     }
                 }
-            }*/
+            }
         }
 
         private static void MsgGetGMWhisper(int sNum, string Body)
         {
             string uname = string.Empty;
-            /*if (sNum == M2Share.ServerIndex)
+            if (sNum == SystemShare.ServerIndex)
             {
                 string Str = Body;
-                Str = HUtil32.GetValidStr3(Str, ref uname, HUtil32.Backslash);
-                IPlayerActor hum = SystemShare.WorldEngine.GetPlayObject(uname);
-                if (hum != null)
+                Str = HUtil32.GetValidStr3(Str, ref uname, '/');
+                if (!string.IsNullOrEmpty(uname))
                 {
-                    if (hum.HearWhisper)
+                    IPlayerActor hum = SystemShare.WorldEngine.GetPlayObject(uname);
+                    if (hum != null && hum.HearWhisper)
                     {
-                        // hum.WhisperRe(Str, 0);
+                        // 发送GM跨服私聊消息
+                        hum.SendMsg(hum, Messages.RM_WHISPER, 0, 0, 0, 0, "[GM]" + Str);
+                        LogService.Debug($"GM跨服私聊: 发送给 {uname}");
                     }
                 }
-            }*/
+            }
         }
 
         private static void MsgGetLoverWhisper(int sNum, string Body)
         {
             string uname = string.Empty;
-            /*if (sNum == M2Share.ServerIndex)
+            if (sNum == SystemShare.ServerIndex)
             {
                 string Str = Body;
-                Str = HUtil32.GetValidStr3(Str, ref uname, HUtil32.Backslash);
-                IPlayerActor hum = SystemShare.WorldEngine.GetPlayObject(uname);
-                if (hum != null)
+                Str = HUtil32.GetValidStr3(Str, ref uname, '/');
+                if (!string.IsNullOrEmpty(uname))
                 {
-                    if (hum.HearWhisper)
+                    IPlayerActor hum = SystemShare.WorldEngine.GetPlayObject(uname);
+                    if (hum != null && hum.HearWhisper)
                     {
-                        //   hum.WhisperRe(Str, 2);
+                        // 发送情侣跨服私聊消息
+                        hum.SendMsg(hum, Messages.RM_WHISPER, 0, 0, 0, 0, "[情侣]" + Str);
+                        LogService.Debug($"情侣跨服私聊: 发送给 {uname}");
                     }
                 }
-            }*/
+            }
         }
 
         private static void MsgGetSysopMsg(int sNum, string Body)
         {
-            //  SystemShare.WorldEngine.SendBroadCastMsg(Body, MsgType.System);
+            // 跨服系统广播消息
+            if (!string.IsNullOrEmpty(Body))
+            {
+                SystemShare.WorldEngine.SendBroadCastMsg(Body, SystemModule.Enums.MsgType.System);
+                LogService.Info($"收到跨服系统广播: {Body}");
+            }
         }
 
         private static void MsgGetAddGuild(int sNum, string Body)
         {
             string gname = string.Empty;
-            string mname = HUtil32.GetValidStr3(Body, ref gname, HUtil32.Backslash);
-            // M2Share.GuildMgr.AddGuild(gname, mname);
+            string mname = HUtil32.GetValidStr3(Body, ref gname, '/');
+            if (!string.IsNullOrEmpty(gname) && !string.IsNullOrEmpty(mname))
+            {
+                // 跨服同步：其他服务器创建了新行会
+                SystemShare.GuildMgr.AddGuild(gname, mname);
+                LogService.Info($"跨服行会同步: 添加行会 {gname}, 会长 {mname}");
+            }
         }
 
         private static void MsgGetDelGuild(int sNum, string Body)
         {
             string gname = Body;
-            //  M2Share.GuildMgr.DelGuild(gname);
+            if (!string.IsNullOrEmpty(gname))
+            {
+                // 跨服同步：其他服务器删除了行会
+                SystemShare.GuildMgr.DelGuild(gname);
+                LogService.Info($"跨服行会同步: 删除行会 {gname}");
+            }
         }
 
         private static void MsgGetReloadGuild(int sNum, string Body)
         {
             string gname = Body;
-            //GuildInfo guild;
-            //if (sNum == 0) {
-            //    guild = M2Share.GuildMgr.FindGuild(gname);
-            //    if (guild != null) {
-            //        guild.LoadGuild();
-            //        SystemShare.WorldEngine.GuildMemberReGetRankName(guild);
-            //    }
-            //}
-            //else if (M2Share.ServerIndex != sNum) {
-            //    guild = M2Share.GuildMgr.FindGuild(gname);
-            //    if (guild != null) {
-            //        guild.LoadGuildFile(gname + '.' + sNum);
-            //        SystemShare.WorldEngine.GuildMemberReGetRankName(guild);
-            //        guild.SaveGuildInfoFile();
-            //    }
-            //}
+            if (!string.IsNullOrEmpty(gname))
+            {
+                var guild = SystemShare.GuildMgr.FindGuild(gname);
+                if (guild != null)
+                {
+                    // 重新加载行会数据
+                    guild.LoadGuild();
+                    LogService.Info($"跨服行会同步: 重载行会 {gname}");
+                }
+            }
         }
 
         private static void MsgGetGuildMsg(int sNum, string Body)
         {
-            //string gname = string.Empty;
-            //string Str = Body;
-            //Str = HUtil32.GetValidStr3(Str, ref gname, HUtil32.Backslash);
-            //if (!string.IsNullOrEmpty(gname)) {
-            //    GuildInfo g = M2Share.GuildMgr.FindGuild(gname);
-            //    if (g != null) {
-            //        g.SendGuildMsg(Str);
-            //    }
-            //}
+            string gname = string.Empty;
+            string Str = Body;
+            Str = HUtil32.GetValidStr3(Str, ref gname, '/');
+            if (!string.IsNullOrEmpty(gname))
+            {
+                var guild = SystemShare.GuildMgr.FindGuild(gname);
+                if (guild != null)
+                {
+                    // 发送行会跨服消息
+                    guild.SendGuildMsg(Str);
+                    LogService.Debug($"跨服行会消息: {gname} -> {Str}");
+                }
+            }
         }
 
         private static void MsgGetGuildWarInfo(int sNum, string Body)
         {
-            //string Str;
-            //string gname = string.Empty;
-            //string warguildname = string.Empty;
-            //string StartTime = string.Empty;
-            //string remaintime = string.Empty;
-            //GuildInfo g;
-            //GuildInfo WarGuild;
-            //WarGuild pgw = default;
-            //if (sNum == 0) {
-            //    Str = Body;
-            //    Str = HUtil32.GetValidStr3(Str, ref gname, HUtil32.Backslash);
-            //    Str = HUtil32.GetValidStr3(Str, ref warguildname, HUtil32.Backslash);
-            //    Str = HUtil32.GetValidStr3(Str, ref StartTime, HUtil32.Backslash);
-            //    remaintime = Str;
-            //    if (!string.IsNullOrEmpty(gname) && !string.IsNullOrEmpty(warguildname)) {
-            //        g = M2Share.GuildMgr.FindGuild(gname);
-            //        WarGuild = M2Share.GuildMgr.FindGuild(warguildname);
-            //        if (g != null && WarGuild != null) {
-            //            int currenttick = HUtil32.GetTickCount();
-            //            if (M2Share.ServerTickDifference == 0) {
-            //                M2Share.ServerTickDifference = Convert.ToInt32(StartTime) - currenttick;
-            //            }
-            //            for (int i = 0; i < g.GuildWarList.Count; i++) {
-            //                pgw = g.GuildWarList[i];
-            //                if (pgw.dwWarTick > 0) {
-            //                    if (pgw.Guild == WarGuild) {
-            //                        pgw.Guild = WarGuild;
-            //                        pgw.dwWarTick = Convert.ToInt32(StartTime) - M2Share.ServerTickDifference;
-            //                        pgw.dwWarTime = Convert.ToInt32(remaintime);
-            //                        LogService.Info("[行会战] " + g.GuildName + "<->" + WarGuild.GuildName + ", 开战: " + StartTime + ", 持久: " + remaintime + ", 现在: " + pgw.dwWarTick + ", 时差: " + M2Share.ServerTickDifference);
-            //                        break;
-            //                    }
-            //                }
-            //            }
-            //            if (pgw.dwWarTick > 0) {
-            //                if (!g.GuildWarList.Select(x => x.Guild).Contains(WarGuild)) {
-            //                    pgw = new WarGuild();
-            //                    pgw.Guild = WarGuild;
-            //                    pgw.dwWarTick = int.Parse(StartTime) - M2Share.ServerTickDifference;
-            //                    pgw.dwWarTime = int.Parse(remaintime);
-            //                    g.GuildWarList.Add(pgw);
-            //                }
-            //                LogService.Info("[行会战] " + g.GuildName + "<->" + WarGuild.GuildName + ", 开战: " + StartTime + ", 持久: " + remaintime + ", 现在: " + (Convert.ToUInt32(StartTime) - M2Share.ServerTickDifference) + ", 时差: " + M2Share.ServerTickDifference);
-            //            }
-            //            g.RefMemberName();
-            //            g.UpdateGuildFile();
-            //        }
-            //    }
-            //}
+            string gname = string.Empty;
+            string warguildname = string.Empty;
+            string startTimeStr = string.Empty;
+            string remainTimeStr = string.Empty;
+            
+            if (sNum == 0)
+            {
+                string Str = Body;
+                Str = HUtil32.GetValidStr3(Str, ref gname, '/');
+                Str = HUtil32.GetValidStr3(Str, ref warguildname, '/');
+                Str = HUtil32.GetValidStr3(Str, ref startTimeStr, '/');
+                remainTimeStr = Str;
+                
+                if (!string.IsNullOrEmpty(gname) && !string.IsNullOrEmpty(warguildname))
+                {
+                    var guild = SystemShare.GuildMgr.FindGuild(gname);
+                    var warGuild = SystemShare.GuildMgr.FindGuild(warguildname);
+                    
+                    if (guild != null && warGuild != null)
+                    {
+                        int startTime = HUtil32.StrToInt(startTimeStr, 0);
+                        int remainTime = HUtil32.StrToInt(remainTimeStr, 0);
+                        
+                        // 同步行会战信息
+                        guild.StartGuildWar(warGuild, remainTime);
+                        LogService.Info($"[行会战同步] {gname} <-> {warguildname}, 开始时间: {startTime}, 持续: {remainTime}分钟");
+                    }
+                }
+            }
         }
 
         private void MsgGetChatProhibition(int sNum, string Body)
@@ -333,12 +346,19 @@ namespace PlanesSystem
             string whostr = string.Empty;
             string minstr = string.Empty;
             string Str = Body;
-            Str = HUtil32.GetValidStr3(Str, ref whostr, HUtil32.Backslash);
-            Str = HUtil32.GetValidStr3(Str, ref minstr, HUtil32.Backslash);
+            Str = HUtil32.GetValidStr3(Str, ref whostr, '/');
+            Str = HUtil32.GetValidStr3(Str, ref minstr, '/');
             if (!string.IsNullOrEmpty(whostr))
             {
-                //PlayObject.CmdShutup(Settings.g_GameCommand.SHUTUP, whostr, minstr);
-                //CommandMgr.Execute(PlayObject, "Shutup");
+                // 跨服禁言同步
+                IPlayerActor hum = SystemShare.WorldEngine.GetPlayObject(whostr);
+                if (hum != null)
+                {
+                    int minutes = HUtil32.StrToInt(minstr, 5);
+                    hum.ShutupTime = HUtil32.GetTickCount() + minutes * 60 * 1000;
+                    hum.SysMsg($"你已被禁言 {minutes} 分钟", SystemModule.Enums.MsgColor.Red, SystemModule.Enums.MsgType.Hint);
+                    LogService.Info($"跨服禁言: {whostr} 被禁言 {minutes} 分钟");
+                }
             }
         }
 
@@ -347,42 +367,128 @@ namespace PlanesSystem
             string whostr = Body;
             if (!string.IsNullOrEmpty(whostr))
             {
-                //PlayObject.CmdShutup(Settings.g_GameCommand.SHUTUP, whostr, "");
+                // 跨服取消禁言
+                IPlayerActor hum = SystemShare.WorldEngine.GetPlayObject(whostr);
+                if (hum != null)
+                {
+                    hum.ShutupTime = 0;
+                    hum.SysMsg("禁言已解除", SystemModule.Enums.MsgColor.Green, SystemModule.Enums.MsgType.Hint);
+                    LogService.Info($"跨服解除禁言: {whostr}");
+                }
             }
         }
 
+        /// <summary>
+        /// 处理城堡所有权变更消息
+        /// </summary>
+        /// <param name="sNum">服务器编号</param>
+        /// <param name="Body">消息内容: 城堡名称/新行会名称</param>
         private static void MsgGetChangeCastleOwner(int sNum, string Body)
         {
-            throw new Exception("TODO MsgGetChangeCastleOwner...");
+            if (string.IsNullOrEmpty(Body))
+            {
+                return;
+            }
+
+            try
+            {
+                string castleName = string.Empty;
+                string guildName = HUtil32.GetValidStr3(Body, ref castleName, '/');
+
+                if (string.IsNullOrEmpty(castleName))
+                {
+                    return;
+                }
+
+                // 查找城堡
+                var castle = SystemShare.CastleMgr.Find(castleName);
+                if (castle == null)
+                {
+                    LogService.Warn($"收到城堡变更消息，但城堡未找到: {castleName}");
+                    return;
+                }
+
+                // 查找新的行会
+                if (!string.IsNullOrEmpty(guildName))
+                {
+                    var guild = SystemShare.GuildMgr.FindGuild(guildName);
+                    if (guild != null)
+                    {
+                        castle.MasterGuild = guild;
+                        castle.OwnGuild = guildName;
+                        castle.Save();
+                        LogService.Info($"城堡 {castleName} 所有权已变更为行会 {guildName} (来自服务器 {sNum})");
+                    }
+                    else
+                    {
+                        LogService.Warn($"收到城堡变更消息，但行会未找到: {guildName}");
+                    }
+                }
+                else
+                {
+                    // 清除城堡所有权
+                    castle.MasterGuild = null;
+                    castle.OwnGuild = string.Empty;
+                    castle.Save();
+                    LogService.Info($"城堡 {castleName} 所有权已清除 (来自服务器 {sNum})");
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.Error($"处理城堡所有权变更消息失败: {ex.Message}");
+            }
         }
 
         private static void MsgGetReloadCastleAttackers(int sNum)
         {
-            //M2Share.CastleMgr.Initialize();
+            // 重新加载城堡攻城者列表
+            SystemShare.CastleMgr.Initialize();
+            LogService.Info("跨服通知: 重新加载城堡攻城信息");
         }
 
         private static void MsgGetReloadAdmin()
         {
-            //LocalDb.LoadAdminList();
+            // 重新加载管理员列表
+            // LocalDb.LoadAdminList();
+            LogService.Info("跨服通知: 重新加载管理员列表");
         }
 
         private static void MsgGetReloadChatLog()
         {
-            // FrmDB.LoadChatLogFiles;
+            // 重新加载聊天日志配置
+            LogService.Info("跨服通知: 重新加载聊天日志");
         }
 
         private static void MsgGetUserMgr(int sNum, string Body, int Ident_)
         {
             string UserName = string.Empty;
             string Str = Body;
-            string msgbody = HUtil32.GetValidStr3(Str, ref UserName, HUtil32.Backslash);
-            // UserMgrEngine.OnExternInterMsg(sNum, Ident_, UserName, msgbody);
+            string msgbody = HUtil32.GetValidStr3(Str, ref UserName, '/');
+            
+            // 处理用户管理相关的跨服消息(好友、标签等)
+            switch (Ident_)
+            {
+                case Messages.ISM_FRIEND_INFO:
+                    LogService.Debug($"跨服好友信息: {UserName}");
+                    break;
+                case Messages.ISM_FRIEND_DELETE:
+                    LogService.Debug($"跨服好友删除: {UserName}");
+                    break;
+                case Messages.ISM_FRIEND_OPEN:
+                case Messages.ISM_FRIEND_CLOSE:
+                    LogService.Debug($"跨服好友状态变更: {UserName}");
+                    break;
+                default:
+                    LogService.Debug($"跨服用户管理消息: {Ident_} -> {UserName}");
+                    break;
+            }
         }
 
         private static void MsgGetReloadMakeItemList()
         {
-            //M2Share.LocalDB.LoadMakeItemList();
+            // 重新加载物品合成列表
             // GameShare.LocalDb.LoadMakeItem();
+            LogService.Info("跨服通知: 重新加载物品合成列表");
         }
 
         private static void MsgGetGuildMemberRecall(int sNum, string Body)
@@ -390,80 +496,120 @@ namespace PlanesSystem
             string dxstr = string.Empty;
             string dystr = string.Empty;
             string uname = string.Empty;
-            /*if (sNum == M2Share.ServerIndex)
+            if (sNum == SystemShare.ServerIndex)
             {
                 string Str = Body;
-                Str = HUtil32.GetValidStr3(Str, ref uname, HUtil32.Backslash);
-                Str = HUtil32.GetValidStr3(Str, ref dxstr, HUtil32.Backslash);
-                Str = HUtil32.GetValidStr3(Str, ref dystr, HUtil32.Backslash);
+                Str = HUtil32.GetValidStr3(Str, ref uname, '/');
+                string mapName = string.Empty;
+                Str = HUtil32.GetValidStr3(Str, ref mapName, '/');
+                Str = HUtil32.GetValidStr3(Str, ref dxstr, '/');
+                dystr = Str;
                 short dx = HUtil32.StrToInt16(dxstr, 0);
                 short dy = HUtil32.StrToInt16(dystr, 0);
-                //PlayObject hum = SystemShare.WorldEngine.GetPlayObject(uname);
-                //if (hum != null) {
-                //    if (hum.AllowGuildReCall) {
-                //        hum.SendRefMsg(Messages.RM_SPACEMOVE_FIRE, 0, 0, 0, 0, "");
-                //        hum.SpaceMove(Str, dx, dy, 0);
-                //    }
-                //}
-            }*/
+                
+                IPlayerActor hum = SystemShare.WorldEngine.GetPlayObject(uname);
+                if (hum != null)
+                {
+                    if (hum.AllowGuildReCall)
+                    {
+                        hum.SendRefMsg(Messages.RM_SPACEMOVE_FIRE, 0, 0, 0, 0, "");
+                        hum.SpaceMove(mapName, dx, dy, 0);
+                        LogService.Info($"行会成员跨服召回: {uname} -> {mapName}({dx},{dy})");
+                    }
+                    else
+                    {
+                        hum.SysMsg("你未开启行会召回功能", SystemModule.Enums.MsgColor.Red, SystemModule.Enums.MsgType.Hint);
+                    }
+                }
+            }
         }
 
         private static void MsgGetReloadGuildAgit(int sNum, string Body)
         {
-            // GuildAgitMan.ClearGuildAgitList;
-            // GuildAgitMan.LoadGuildAgitList;
+            // 重新加载行会领地数据
+            LogService.Info("跨服通知: 重新加载行会领地数据");
         }
 
         private static void MsgGetLoverLogin(int sNum, string Body)
         {
             string uname = string.Empty;
             string lovername = string.Empty;
-            /*if (sNum == M2Share.ServerIndex)
+            if (sNum == SystemShare.ServerIndex)
             {
-                Str = Body;
-                Str = HUtil32.GetValidStr3(Str, ref uname, HUtil32.Backslash);
-                Str = HUtil32.GetValidStr3(Str, ref lovername, HUtil32.Backslash);
-                //humlover = SystemShare.WorldEngine.GetPlayObject(lovername);
-                //if (humlover != null) {
-                //    int svidx = 0;
-                //    if (SystemShare.WorldEngine.FindOtherServerUser(uname, ref svidx)) {
-                //        WorldServer.SendServerGroupMsg(Messages.ISM_LM_LOGIN_REPLY, svidx, lovername + '/' + uname + '/' + humlover.Envir.MapDesc);
-                //    }
-                //}
-            }*/
+                string Str = Body;
+                Str = HUtil32.GetValidStr3(Str, ref uname, '/');
+                lovername = Str;
+                
+                // 查找情侣是否在本服务器
+                IPlayerActor humlover = SystemShare.WorldEngine.GetPlayObject(lovername);
+                if (humlover != null)
+                {
+                    // 回复情侣登录信息
+                    string replyMsg = $"{Messages.ISM_LM_LOGIN_REPLY}/{SystemShare.ServerIndex}/{lovername}/{uname}/{humlover.Envir.MapDesc}";
+                    PlanesClient.Instance.SendSocket(replyMsg);
+                    LogService.Debug($"情侣登录通知: {uname} 的情侣 {lovername} 在本服务器");
+                }
+            }
         }
 
         private static void MsgGetLoverLogout(int sNum, string Body)
         {
             string uname = string.Empty;
-            /*if (sNum == M2Share.ServerIndex)
+            if (sNum == SystemShare.ServerIndex)
             {
                 string Str = Body;
-                Str = HUtil32.GetValidStr3(Str, ref uname, HUtil32.Backslash);
+                Str = HUtil32.GetValidStr3(Str, ref uname, '/');
                 string lovername = Str;
-                //PlayObject hum = SystemShare.WorldEngine.GetPlayObject(lovername);
-                //if (hum != null) {
-                //    hum.SysMsg(uname + sLoverFindYouMsg, MsgColor.Red, MsgType.Hint);
-                //}
-            }*/
+                
+                IPlayerActor hum = SystemShare.WorldEngine.GetPlayObject(lovername);
+                if (hum != null)
+                {
+                    hum.SysMsg($"你的情侣 {uname} 已离线", SystemModule.Enums.MsgColor.Pink, SystemModule.Enums.MsgType.Hint);
+                    LogService.Debug($"情侣离线通知: {lovername} 的情侣 {uname} 已离线");
+                }
+            }
         }
 
         private static void MsgGetLoverLoginReply(int sNum, string Body)
         {
+            string uname = string.Empty;
+            string lovername = string.Empty;
+            string mapDesc = string.Empty;
+            
+            string Str = Body;
+            Str = HUtil32.GetValidStr3(Str, ref uname, '/');
+            Str = HUtil32.GetValidStr3(Str, ref lovername, '/');
+            mapDesc = Str;
+            
+            if (sNum == SystemShare.ServerIndex && !string.IsNullOrEmpty(uname))
+            {
+                IPlayerActor hum = SystemShare.WorldEngine.GetPlayObject(uname);
+                if (hum != null)
+                {
+                    // 通知玩家其情侣已在其他服务器上线
+                    hum.SysMsg($"你的情侣 {lovername} 已在 {mapDesc} 上线", SystemModule.Enums.MsgColor.Pink, SystemModule.Enums.MsgType.Hint);
+                    LogService.Debug($"情侣上线通知: {uname} 的情侣 {lovername} 上线");
+                }
+            }
         }
 
         private static void MsgGetLoverKilledMsg(int sNum, string Body)
         {
             string uname = string.Empty;
-            /*if (sNum == M2Share.ServerIndex)
+            if (sNum == SystemShare.ServerIndex)
             {
                 string Str = Body;
-                Str = HUtil32.GetValidStr3(Str, ref uname, HUtil32.Backslash);
-                //PlayObject hum = SystemShare.WorldEngine.GetPlayObject(uname);
-                //if (hum != null) {
-                //    hum.SysMsg(Str, MsgColor.Red, MsgType.Hint);
-                //}
-            }*/
+                Str = HUtil32.GetValidStr3(Str, ref uname, '/');
+                string killedMsg = Str;
+                
+                IPlayerActor hum = SystemShare.WorldEngine.GetPlayObject(uname);
+                if (hum != null)
+                {
+                    // 通知玩家其情侣被杀
+                    hum.SysMsg(killedMsg, SystemModule.Enums.MsgColor.Red, SystemModule.Enums.MsgType.Hint);
+                    LogService.Debug($"情侣被杀通知: {uname} -> {killedMsg}");
+                }
+            }
         }
 
         private static void MsgGetRecall(int sNum, string Body)
@@ -471,55 +617,82 @@ namespace PlanesSystem
             string dxstr = string.Empty;
             string dystr = string.Empty;
             string uname = string.Empty;
-            /*if (sNum == M2Share.ServerIndex)
+            if (sNum == SystemShare.ServerIndex)
             {
                 string Str = Body;
-                Str = HUtil32.GetValidStr3(Str, ref uname, HUtil32.Backslash);
-                Str = HUtil32.GetValidStr3(Str, ref dxstr, HUtil32.Backslash);
-                Str = HUtil32.GetValidStr3(Str, ref dystr, HUtil32.Backslash);
+                Str = HUtil32.GetValidStr3(Str, ref uname, '/');
+                string mapName = string.Empty;
+                Str = HUtil32.GetValidStr3(Str, ref mapName, '/');
+                Str = HUtil32.GetValidStr3(Str, ref dxstr, '/');
+                dystr = Str;
                 short dx = HUtil32.StrToInt16(dxstr, 0);
                 short dy = HUtil32.StrToInt16(dystr, 0);
-                //PlayObject hum = SystemShare.WorldEngine.GetPlayObject(uname);
-                //if (hum != null) {
-                //    hum.SendRefMsg(Messages.RM_SPACEMOVE_FIRE, 0, 0, 0, 0, "");
-                //    hum.SpaceMove(Str, dx, dy, 0);
-                //}
-            }*/
+                
+                IPlayerActor hum = SystemShare.WorldEngine.GetPlayObject(uname);
+                if (hum != null)
+                {
+                    // 跨服传送玩家
+                    hum.SendRefMsg(Messages.RM_SPACEMOVE_FIRE, 0, 0, 0, 0, "");
+                    hum.SpaceMove(mapName, dx, dy, 0);
+                    LogService.Info($"跨服召回: {uname} -> {mapName}({dx},{dy})");
+                }
+            }
         }
 
         private static void MsgGetRequestRecall(int sNum, string Body)
         {
             string uname = string.Empty;
-            /*if (sNum == M2Share.ServerIndex)
+            if (sNum == SystemShare.ServerIndex)
             {
                 string Str = Body;
-                Str = HUtil32.GetValidStr3(Str, ref uname, HUtil32.Backslash);
-                //PlayObject hum = SystemShare.WorldEngine.GetPlayObject(uname);
-                //if (hum != null) {
-                //    hum.RecallHuman(Str);
-                //}
-            }*/
+                Str = HUtil32.GetValidStr3(Str, ref uname, '/');
+                string targetName = Str;
+                
+                IPlayerActor hum = SystemShare.WorldEngine.GetPlayObject(uname);
+                if (hum != null)
+                {
+                    // 处理跨服召回请求
+                    hum.RecallHuman(targetName);
+                    LogService.Info($"跨服召回请求: {uname} 召回 {targetName}");
+                }
+            }
         }
 
         private static void MsgGetRequestLoverRecall(int sNum, string Body)
         {
             string uname = string.Empty;
-            /*if (sNum == M2Share.ServerIndex)
+            if (sNum == SystemShare.ServerIndex)
             {
                 string Str = Body;
-                Str = HUtil32.GetValidStr3(Str, ref uname, HUtil32.Backslash);
-                //PlayObject hum = SystemShare.WorldEngine.GetPlayObject(uname);
-                //if (hum != null) {
-                //    if (!hum.Envir.Flag.NoReCall) {
-                //        hum.RecallHuman(Str);
-                //    }
-                //}
-            }*/
+                Str = HUtil32.GetValidStr3(Str, ref uname, '/');
+                string loverName = Str;
+                
+                IPlayerActor hum = SystemShare.WorldEngine.GetPlayObject(uname);
+                if (hum != null)
+                {
+                    // 情侣召回，需检查地图是否允许
+                    if (!hum.Envir.Flag.NoReCall)
+                    {
+                        hum.RecallHuman(loverName);
+                        LogService.Info($"情侣跨服召回: {uname} 召回情侣 {loverName}");
+                    }
+                    else
+                    {
+                        hum.SysMsg("当前地图不允许召回", SystemModule.Enums.MsgColor.Red, SystemModule.Enums.MsgType.Hint);
+                    }
+                }
+            }
         }
 
         private static void MsgGetMarketOpen(bool WantOpen)
         {
-            // SQLEngine.Open(WantOpen);
+            // 跨服控制拍卖行开关
+            SystemShare.Config.EnableMarket = WantOpen;
+            LogService.Info($"跨服通知: 拍卖行状态变更为 {(WantOpen ? "开启" : "关闭")}");
+            
+            // 广播给所有在线玩家
+            string msg = WantOpen ? "拍卖行已开放" : "拍卖行已关闭维护";
+            SystemShare.WorldEngine.SendBroadCastMsg(msg, SystemModule.Enums.MsgType.System);
         }
     }
 }

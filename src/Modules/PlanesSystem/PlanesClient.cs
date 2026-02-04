@@ -148,8 +148,33 @@ namespace PlanesSystem
         private Task MsgClientConnect(ITcpClient client, ConnectedEventArgs e)
         {
             LogService.Info("连接主服务器(" + client.RemoteIPHost + ")成功...");
-            //todo 链接主服务器成功后需要发消息链接主服务器告知主服务器当前服务器IP和端口，保持登录数据同步
+            // 连接成功后发送服务器注册消息
+            SendServerRegister();
             return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// 发送服务器注册消息到主位面服务器
+        /// </summary>
+        private void SendServerRegister()
+        {
+            try
+            {
+                // 格式: ISM_SERVERREGISTER/服务器索引/服务器名称/IP/端口/在线人数
+                string registerMsg = string.Format("{0}/{1}/{2}/{3}/{4}/{5}",
+                    Messages.ISM_SERVERREGISTER,
+                    SystemShare.ServerIndex,
+                    SystemShare.Config.ServerName,
+                    SystemShare.Config.GateAddr,
+                    SystemShare.Config.GatePort,
+                    SystemShare.WorldEngine.OnlinePlayObject);
+                SendSocket(registerMsg);
+                LogService.Info($"已发送服务器注册消息: {SystemShare.Config.ServerName}[{SystemShare.ServerIndex}]");
+            }
+            catch (Exception ex)
+            {
+                LogService.Error($"发送服务器注册消息失败: {ex.Message}");
+            }
         }
 
         private Task MsgClientDisconnected(ITcpClientBase client, DisconnectEventArgs e)

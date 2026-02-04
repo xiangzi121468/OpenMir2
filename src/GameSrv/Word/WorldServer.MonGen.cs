@@ -1,4 +1,4 @@
-﻿using M2Server.Monster;
+using M2Server.Monster;
 using M2Server.Monster.Monsters;
 using OpenMir2.Enums;
 using SystemModule.Actors;
@@ -724,6 +724,25 @@ namespace GameSrv.Word
                     break;
                 case 215:
                     cert = new FireballMonster();
+                    break;
+                // ========== 自定义新怪物 (Race 300-305) ==========
+                case 300: // 冰霜领主 - 高级BOSS，远程冰霜攻击，AOE暴风雪
+                    cert = new FrostLord();
+                    break;
+                case 301: // 暗影刺客 - 隐身突袭，首击暴击
+                    cert = new ShadowAssassin();
+                    break;
+                case 302: // 死灵召唤师 - 召唤骷髅，低血狂暴
+                    cert = new NecroSummoner();
+                    break;
+                case 303: // 分裂史莱姆 - 死亡分裂成小史莱姆
+                    cert = new SplitSlime();
+                    break;
+                case 304: // 吸血蝙蝠 - 攻击吸血
+                    cert = new VampireBat();
+                    break;
+                case 305: // 烈焰魔龙 - 顶级BOSS，火焰吐息，火墙
+                    cert = new InfernoWyrm();
                     break;
             }
 

@@ -547,8 +547,8 @@ namespace ScriptSystem
                         //  result = QuestCheckConditionCheckUserDateType(playerActor,playerActor.ChrName, m_sPath + questConditionInfo.sParam1, questConditionInfo.sParam3, questConditionInfo.sParam4, questConditionInfo.sParam5);
                         break;
                     case (int)ConditionCode.CHECKRANDOMNO:
-                        LogService.Error("TODO nSC_CHECKRANDOMNO...");
-                        //result = GotoLable_QuestCheckCondition_CheckRandomNo(playerActor,sMsg);
+                        // 检测输入的验证码是否正确
+                        result = GotoLable_QuestCheckCondition_CheckRandomNo(playerActor, questConditionInfo.sParam1);
                         break;
                     case (int)ConditionCode.CHECKDIEMON:
                         result = GotoLable_QuestCheckCondition_CheckDieMon(playerActor, questConditionInfo.sParam1);

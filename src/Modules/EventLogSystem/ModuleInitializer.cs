@@ -1,4 +1,4 @@
-﻿using EventLogSystem.Event;
+using EventLogSystem.Event;
 using EventLogSystem.Services;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,7 +13,8 @@ namespace EventLogSystem
     {
         public void Configure(IHostEnvironment env)
         {
-            throw new NotImplementedException();
+            // 事件日志系统配置初始化
+            LogService.Debug($"EventLogSystem 配置初始化, 环境: {env.EnvironmentName}");
         }
 
         public void ConfigureServices(IServiceCollection serviceCollection)

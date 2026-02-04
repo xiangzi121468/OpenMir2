@@ -1,6 +1,8 @@
 using GameSrv.Word;
 using PlanesSystem;
 using SystemModule.Enums;
+using NoticeModule;
+using ActivityModule;
 
 namespace GameSrv
 {
@@ -17,6 +19,8 @@ namespace GameSrv
         /// </summary>
         private bool ScheduledSaveData { get; set; }
         private int SendOnlineTick { get; set; }
+        private bool _noticeInitialized = false;
+        private bool _activityInitialized = false;
 
         public TimedService()
         {
@@ -249,6 +253,123 @@ namespace GameSrv
                 SendOnlineTick = HUtil32.GetTickCount();
                 string sMsg = string.Format(MessageSettings.SendOnlineCountMsg, HUtil32.Round(SystemShare.WorldEngine.OnlinePlayObject * (SystemShare.Config.SendOnlineCountRate / 10.0)));
                 SystemShare.WorldEngine.SendBroadCastMsg(sMsg, MsgType.System);
+            }
+            
+            // 处理数据库公告系统
+            ProcessNoticeSystemAsync().ConfigureAwait(false);
+            
+            // 处理活动系统
+            ProcessActivitySystemAsync().ConfigureAwait(false);
+        }
+        
+        /// <summary>
+        /// 初始化并处理公告系统
+        /// </summary>
+        private async Task ProcessNoticeSystemAsync()
+        {
+            try
+            {
+                // 首次初始化
+                if (!_noticeInitialized && !string.IsNullOrEmpty(SystemShare.Config.DBConnection))
+                {
+                    await NoticeIntegration.InitializeAsync(
+                        SystemShare.Config.DBConnection,
+                        (content, color, priority) => 
+                        {
+                            // 广播公告到全服
+                            var msgType = priority >= 2 ? MsgType.Hint : MsgType.System;
+                            SystemShare.WorldEngine.SendBroadCastMsg(content, msgType);
+                        },
+                        (map, content, color) =>
+                        {
+                            // 发送地图公告（如果需要）
+                            var envir = SystemShare.MapMgr.FindMap(map);
+                            if (envir != null)
+                            {
+                                envir.SendMapMessage(content);
+                            }
+                        });
+                    _noticeInitialized = true;
+                    LogService.Info("数据库公告系统初始化成功");
+                }
+                
+                // 定时处理公告
+                if (_noticeInitialized)
+                {
+                    await NoticeIntegration.ProcessAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.Error($"处理公告系统异常: {ex.Message}");
+            }
+        }
+        
+        /// <summary>
+        /// 初始化并处理活动系统
+        /// </summary>
+        private async Task ProcessActivitySystemAsync()
+        {
+            try
+            {
+                // 首次初始化
+                if (!_activityInitialized && !string.IsNullOrEmpty(SystemShare.Config.DBConnection))
+                {
+                    await ActivityIntegration.InitializeAsync(
+                        SystemShare.Config.DBConnection,
+                        // 广播活动消息
+                        (msg) => SystemShare.WorldEngine.SendBroadCastMsg(msg, MsgType.System),
+                        // 刷新BOSS
+                        (monster, map, x, y) => 
+                        {
+                            try
+                            {
+                                var envir = SystemShare.MapMgr.FindMap(map);
+                                if (envir != null)
+                                {
+                                    SystemShare.WorldEngine.RegenMonster(envir, (short)x, (short)y, monster, 1);
+                                    LogService.Info($"[活动] 刷新BOSS: {monster} 在 {map}({x},{y})");
+                                }
+                            }
+                            catch { }
+                        },
+                        // 天降礼物
+                        (items, map) =>
+                        {
+                            try
+                            {
+                                var envir = SystemShare.MapMgr.FindMap(map);
+                                if (envir != null && items != null)
+                                {
+                                    LogService.Info($"[活动] 天降礼物在 {map}: {string.Join(",", items)}");
+                                    // TODO: 实现物品掉落逻辑
+                                }
+                            }
+                            catch { }
+                        },
+                        // 刷新NPC
+                        (npc, map, x, y) =>
+                        {
+                            try
+                            {
+                                LogService.Info($"[活动] 刷新NPC: {npc} 在 {map}({x},{y})");
+                                // TODO: 实现NPC刷新逻辑
+                            }
+                            catch { }
+                        });
+                    _activityInitialized = true;
+                    LogService.Info("活动系统初始化成功");
+                }
+                
+                // 定时处理活动
+                if (_activityInitialized)
+                {
+                    await ActivityIntegration.ProcessAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.Error($"处理活动系统异常: {ex.Message}");
             }
         }
 

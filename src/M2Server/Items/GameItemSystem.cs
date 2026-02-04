@@ -1,4 +1,5 @@
-﻿using OpenMir2;
+using System.Collections.Generic;
+using OpenMir2;
 using OpenMir2.Data;
 using OpenMir2.Packets.ClientPackets;
 using SystemModule.SubSystem;
@@ -134,6 +135,15 @@ namespace M2Server.Items
                 item.MakeIndex = M2Share.GetItemNumber();
                 item.Dura = stdItem.DuraMax;
                 item.DuraMax = stdItem.DuraMax;
+                
+                // 数据驱动: 从StdItem.WeaponEffect设置武器特效
+                // 特效类型存储在Desc[10]，对应客户端reserve[3]
+                // 特效值100-249为自定义特效 (20帧动画，索引30000+)
+                if (stdItem.WeaponEffect > 0)
+                {
+                    item.Desc[10] = stdItem.WeaponEffect;
+                }
+                
                 return true;
             }
             return false;

@@ -1,4 +1,4 @@
-﻿using OpenMir2;
+using OpenMir2;
 using OpenMir2.Data;
 using OpenMir2.DataHandlingAdapters;
 using OpenMir2.Packets.ServerPackets;
@@ -378,14 +378,16 @@ namespace MarketSystem.Services
                                     }
                                     else
                                     {
-                                        //todo 把物品还给玩家
-                                        saveUser.SysMsg("物品上架失败.", MsgColor.Green, MsgType.Hint);
+                                        // 上架失败，物品归还给玩家
+                                        ReturnItemToPlayer(saveUser, commandMessage.Recog, "上架失败的物品");
+                                        saveUser.SysMsg("物品上架失败，已归还到背包.", MsgColor.Red, MsgType.Hint);
                                     }
                                 }
                                 else
                                 {
-                                    //todo 把物品还给玩家，或者需要通过邮件发送给玩家
-                                    LogService.Debug("玩家不在线,拍卖行数据无法返回给玩家");
+                                    // 玩家不在线，记录归还日志，等玩家上线后通过邮件系统发送
+                                    LogService.Info($"玩家不在线,拍卖行物品[ID:{commandMessage.Recog}]将通过邮件发送给玩家");
+                                    SaveItemReturnRecord(commandMessage.Recog, "上架失败物品", 1); // 1=邮件发送
                                 }
                                 LogService.Info("保存拍卖行数据成功...");
                                 break;
@@ -455,6 +457,67 @@ namespace MarketSystem.Services
                 user.SendMsg(Messages.RM_MARKET_RESULT, 0, 0, MarketConst.UMResult_OverSellCount, 0);
             }
             // FlagReadyToSellCheck = true;
+        }
+
+        /// <summary>
+        /// 归还物品给在线玩家
+        /// </summary>
+        private void ReturnItemToPlayer(IPlayerActor player, int itemIndex, string itemName)
+        {
+            try
+            {
+                // 通过ItemSystem归还物品到玩家背包
+                if (SystemShare.ItemSystem != null)
+                {
+                    // 从缓存或数据库获取物品数据并添加到玩家背包
+                    // 这里需要根据itemIndex从MarketManager获取物品信息
+                    var marketItem = _marketManager.GetItem(itemIndex);
+                    if (marketItem != null && marketItem.SellItem != null)
+                    {
+                        var userItem = marketItem.SellItem;
+                        if (player.AddItemToBag(userItem))
+                        {
+                            player.SendAddItem(userItem);
+                            LogService.Info($"物品[{itemName}]已归还给玩家[{player.ChrName}]背包");
+                        }
+                        else
+                        {
+                            // 背包满了，需要发邮件
+                            SaveItemReturnRecord(player.ActorId, itemName, 1);
+                            player.SysMsg($"背包已满,物品[{itemName}]将通过邮件发送", MsgColor.Yellow, MsgType.Hint);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.Error($"归还物品失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 保存物品归还记录(用于离线玩家邮件发送)
+        /// </summary>
+        private void SaveItemReturnRecord(int actorId, string itemName, byte returnType)
+        {
+            try
+            {
+                // 发送归还请求到DBSrv，记录到数据库
+                ServerRequestMessage request = new ServerRequestMessage(Messages.DB_SAVEMARKET, actorId, 0, returnType, 0);
+                MarketItemReturnMessage returnMsg = new MarketItemReturnMessage
+                {
+                    UserName = "", // DBSrv会根据actorId查找玩家名
+                    ItemIndex = actorId,
+                    ItemName = itemName,
+                    ReturnType = returnType
+                };
+                SendRequest(actorId, request, returnMsg);
+                LogService.Info($"已记录物品归还请求: ActorId={actorId}, Item={itemName}, Type={(returnType == 0 ? "背包" : "邮件")}");
+            }
+            catch (Exception ex)
+            {
+                LogService.Error($"保存物品归还记录失败: {ex.Message}");
+            }
         }
     }
 }

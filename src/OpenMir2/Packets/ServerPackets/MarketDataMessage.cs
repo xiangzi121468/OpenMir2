@@ -52,4 +52,28 @@ namespace OpenMir2.Packets.ServerPackets
         public int UserMode { get; set; }
         public int MarketNPC { get; set; }
     }
+
+    /// <summary>
+    /// 删除拍卖行物品消息
+    /// </summary>
+    [MemoryPackable]
+    public partial struct MarketDeleteMessage
+    {
+        public int Index { get; set; }
+        public string MarketName { get; set; }
+        public string UserName { get; set; }
+        public byte Reason { get; set; } // 0=取消, 1=过期, 2=购买
+    }
+
+    /// <summary>
+    /// 物品归还消息(用于拍卖失败/取消/过期后归还物品给玩家)
+    /// </summary>
+    [MemoryPackable]
+    public partial struct MarketItemReturnMessage
+    {
+        public string UserName { get; set; }
+        public int ItemIndex { get; set; }
+        public string ItemName { get; set; }
+        public byte ReturnType { get; set; } // 0=直接归还背包, 1=邮件发送
+    }
 }

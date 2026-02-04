@@ -1,4 +1,4 @@
-﻿using OpenMir2;
+using OpenMir2;
 using OpenMir2.Common;
 using OpenMir2.Data;
 using OpenMir2.Enums;
@@ -2226,9 +2226,45 @@ namespace ScriptSystem.Processings
             }
         }
 
+        /// <summary>
+        /// 升级对话框物品
+        /// 格式: UPGRADEDLGITEM 物品名称 升级后物品名称
+        /// </summary>
         private void ActionOfUpgradeDlgItem(INormNpc normNpc, IPlayerActor playerActor, QuestActionInfo questActionInfo, ref bool Success)
         {
+            Success = false;
+            string srcItemName = questActionInfo.sParam1;
+            string dstItemName = questActionInfo.sParam2;
 
+            if (string.IsNullOrEmpty(srcItemName) || string.IsNullOrEmpty(dstItemName))
+            {
+                return;
+            }
+
+            // 查找玩家对话框中的物品
+            if (playerActor.DealItem != null && playerActor.DealItem.Index > 0)
+            {
+                var stdItem = SystemShare.ItemSystem.GetStdItem(playerActor.DealItem.Index);
+                if (stdItem != null && string.Equals(stdItem.Name, srcItemName, StringComparison.OrdinalIgnoreCase))
+                {
+                    // 替换为升级后的物品
+                    var newItem = new UserItem();
+                    if (SystemShare.ItemSystem.CopyToUserItemFromName(dstItemName, ref newItem))
+                    {
+                        // 保留原物品的耐久度比例
+                        if (playerActor.DealItem.DuraMax > 0)
+                        {
+                            double ratio = (double)playerActor.DealItem.Dura / playerActor.DealItem.DuraMax;
+                            newItem.Dura = (ushort)(newItem.DuraMax * ratio);
+                        }
+                        // 保留MakeIndex
+                        newItem.MakeIndex = playerActor.DealItem.MakeIndex;
+
+                        playerActor.DealItem = newItem;
+                        Success = true;
+                    }
+                }
+            }
         }
 
         private void ActionOfQueryItemDlg(INormNpc normNpc, IPlayerActor playerActor, QuestActionInfo questActionInfo, ref bool Success)
@@ -3206,9 +3242,31 @@ namespace ScriptSystem.Processings
             }
         }
 
+        /// <summary>
+        /// 地图喊话
+        /// 格式: MAPTING 地图名称 消息内容
+        /// </summary>
         private void ActionOfMapTing(INormNpc normNpc, IPlayerActor playerActor, QuestActionInfo questActionInfo, ref bool Success)
         {
+            Success = false;
+            string mapName = questActionInfo.sParam1;
+            string message = questActionInfo.sParam2;
 
+            if (string.IsNullOrEmpty(mapName) || string.IsNullOrEmpty(message))
+            {
+                return;
+            }
+
+            // 替换变量
+            message = GetLineVariableText(playerActor, message);
+
+            // 发送地图消息
+            var envir = SystemShare.MapMgr.FindMap(mapName);
+            if (envir != null)
+            {
+                envir.SendMapMessage(message, MsgType.System);
+                Success = true;
+            }
         }
 
         private void ActionOfMarry(INormNpc normNpc, IPlayerActor playerActor, QuestActionInfo questActionInfo, ref bool Success)
@@ -3484,8 +3542,72 @@ namespace ScriptSystem.Processings
             }
         }
 
+        /// <summary>
+        /// 召集组队成员
+        /// 格式: RECALLGROUPMEMBERS
+        /// 将组队成员传送到队长身边
+        /// </summary>
         private void ActionOfRecallGroupMembers(INormNpc normNpc, IPlayerActor playerActor, QuestActionInfo questActionInfo, ref bool Success)
         {
+            Success = false;
+
+            // 检查是否有组队
+            if (playerActor.GroupOwner == null)
+            {
+                playerActor.SysMsg("你没有加入任何队伍", MsgColor.Red, MsgType.Hint);
+                return;
+            }
+
+            // 只有队长可以召集
+            if (playerActor.GroupOwner != playerActor)
+            {
+                playerActor.SysMsg("只有队长才能召集队员", MsgColor.Red, MsgType.Hint);
+                return;
+            }
+
+            // 检查是否允许组队召回
+            if (!playerActor.AllowGroupReCall)
+            {
+                playerActor.SysMsg("组队召回功能已关闭", MsgColor.Red, MsgType.Hint);
+                return;
+            }
+
+            // 获取队长位置
+            string mapName = playerActor.MapName;
+            short currX = playerActor.CurrX;
+            short currY = playerActor.CurrY;
+
+            // 遍历组队成员
+            int recallCount = 0;
+            var members = playerActor.GroupMembers;
+            if (members != null)
+            {
+                for (int i = 0; i < members.Count; i++)
+                {
+                    var member = members[i];
+                    if (member != null && member != playerActor && !member.Death)
+                    {
+                        // 检查成员是否允许被召回
+                        if (member.AllowGroupReCall)
+                        {
+                            // 传送到队长身边
+                            member.SpaceMove(mapName, currX, currY, 0);
+                            member.SysMsg("队长召集你到他身边", MsgColor.Green, MsgType.Hint);
+                            recallCount++;
+                        }
+                    }
+                }
+            }
+
+            if (recallCount > 0)
+            {
+                playerActor.SysMsg($"成功召集 {recallCount} 名队员", MsgColor.Green, MsgType.Hint);
+                Success = true;
+            }
+            else
+            {
+                playerActor.SysMsg("没有可召集的队员", MsgColor.Red, MsgType.Hint);
+            }
         }
 
         private void ActionOfSetRankLevelName(INormNpc normNpc, IPlayerActor playerActor, QuestActionInfo questActionInfo, ref bool Success)

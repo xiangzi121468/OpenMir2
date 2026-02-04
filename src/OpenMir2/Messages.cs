@@ -1,4 +1,4 @@
-﻿using OpenMir2.Packets.ClientPackets;
+using OpenMir2.Packets.ClientPackets;
 
 namespace OpenMir2
 {
@@ -20,8 +20,16 @@ namespace OpenMir2
         public const int SM_HAMSHOPTYPE = 9060;
         public const int CM_OPHAMSHOP = 9061;
         public const int SM_OPHAMSHOP = 9062;
+        /// <summary>
+        /// 检查物品 (保留兼容旧客户端拼写)
+        /// </summary>
         public const int CM_CHACKITEM = 9063;
         public const int SM_CHACKITEM = 9064;
+        /// <summary>
+        /// 检查物品 (正确拼写别名)
+        /// </summary>
+        public const int CM_CHECKITEM = CM_CHACKITEM;
+        public const int SM_CHECKITEM = SM_CHACKITEM;
 
         public const int CM_QUERYUSERSTATE = 82;
         public const int CM_QUERYUSERNAME = 80;

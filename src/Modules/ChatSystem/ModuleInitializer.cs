@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OpenMir2;
 using SystemModule;
@@ -11,7 +11,8 @@ namespace ChatSystem
 
         public void Configure(IHostEnvironment env)
         {
-            throw new NotImplementedException();
+            // 聊天系统配置初始化
+            LogService.Debug($"ChatSystem 配置初始化, 环境: {env.EnvironmentName}");
         }
 
         public void ConfigureServices(IServiceCollection serviceCollection)

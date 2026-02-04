@@ -1,4 +1,4 @@
-﻿using LoginSrv.Conf;
+using LoginSrv.Conf;
 using LoginSrv.Storage;
 using System.Net.Sockets;
 
@@ -232,6 +232,16 @@ namespace LoginSrv.Services
                 {
                     SessionKick(sLoginId);
                     nCode = -3;
+                }
+                // 检查账号是否被封禁
+                if (nCode == 1)
+                {
+                    var banInfo = await CheckAccountBanAsync(sLoginId, userInfo.UserIPaddr);
+                    if (banInfo != null)
+                    {
+                        LogService.Warn($"账号[{sLoginId}] 登录被拒绝: {banInfo.Reason}, 解封时间: {banInfo.EndTime:yyyy-MM-dd HH:mm:ss}");
+                        nCode = -4; // 账号被封禁
+                    }
                 }
                 CommandMessage defMsg;
                 if (boNeedUpdate)
@@ -836,6 +846,70 @@ namespace LoginSrv.Services
         /// 获取服务器列表
         /// </summary>
         /// <returns></returns>
+        /// <summary>
+        /// 检查账号是否被封禁
+        /// </summary>
+        private async Task<BanInfo> CheckAccountBanAsync(string accountId, string ipAddress)
+        {
+            try
+            {
+                string connStr = _configMgr.Config.ConnctionString;
+                if (string.IsNullOrEmpty(connStr))
+                {
+                    return null;
+                }
+                
+                using var conn = new MySqlConnector.MySqlConnection(connStr);
+                await conn.OpenAsync();
+                
+                // 检查账号封禁或IP封禁
+                using var cmd = new MySqlConnector.MySqlCommand(@"
+                    SELECT BanType, BanValue, Reason, EndTime, IsPermanent 
+                    FROM ban_records 
+                    WHERE IsActive = 1 
+                      AND ((BanType = 'account' AND BanValue = @AccountId) 
+                           OR (BanType = 'ip' AND BanValue = @IpAddress))
+                      AND (IsPermanent = 1 OR EndTime > NOW())
+                    ORDER BY IsPermanent DESC, EndTime DESC
+                    LIMIT 1", conn);
+                
+                cmd.Parameters.AddWithValue("@AccountId", accountId);
+                cmd.Parameters.AddWithValue("@IpAddress", ipAddress);
+                
+                using var reader = await cmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    return new BanInfo
+                    {
+                        BanType = reader.GetString("BanType"),
+                        BanValue = reader.GetString("BanValue"),
+                        Reason = reader.IsDBNull(reader.GetOrdinal("Reason")) ? "违规操作" : reader.GetString("Reason"),
+                        EndTime = reader.IsDBNull(reader.GetOrdinal("EndTime")) ? DateTime.MaxValue : reader.GetDateTime("EndTime"),
+                        IsPermanent = reader.GetBoolean("IsPermanent")
+                    };
+                }
+                
+                return null;
+            }
+            catch (Exception ex)
+            {
+                LogService.Error($"[Exception] CheckAccountBanAsync: {ex.Message}");
+                return null; // 出错时不阻止登录
+            }
+        }
+        
+        /// <summary>
+        /// 封禁信息
+        /// </summary>
+        private class BanInfo
+        {
+            public string BanType { get; set; }
+            public string BanValue { get; set; }
+            public string Reason { get; set; }
+            public DateTime EndTime { get; set; }
+            public bool IsPermanent { get; set; }
+        }
+
         private string GetServerListInfo()
         {
             string result = string.Empty;

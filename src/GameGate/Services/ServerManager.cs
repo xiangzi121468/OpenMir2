@@ -1,4 +1,4 @@
-﻿using GameGate.Conf;
+using GameGate.Conf;
 using System.Threading.Channels;
 
 namespace GameGate.Services
@@ -153,33 +153,134 @@ namespace GameGate.Services
             return _serverServices;
         }
 
+        /// <summary>
+        /// 轮询计数器
+        /// </summary>
+        private int _roundRobinIndex = 0;
+
+        /// <summary>
+        /// 根据配置的分配模式获取客户端线程
+        /// </summary>
         public ClientThread GetClientThread(byte serviceId, out int threadId)
         {
-            //TODO 根据配置文件有四种模式  默认随机
-            //1.轮询分配
-            //2.总是分配到最小资源 即网关在线人数最小的那个
-            //3.一直分配到一个 直到当前玩家达到配置上线，则开始分配到其他可用网关
-            //4.按权重分配
             threadId = -1;
             if (!_serverServices.Any())
             {
                 return null;
             }
 
-            ServerService[] availableList = _serverServices.Where(x => x.ClientThread.Running == RunningState.Runing).ToArray();//允许分配玩家连接
+            ServerService[] availableList = _serverServices.Where(x => x.ClientThread.Running == RunningState.Runing).ToArray();
+            if (availableList.Length == 0)
+            {
+                return null;
+            }
             if (availableList.Length == 1)
             {
-                threadId = 1;
+                threadId = 0;
                 return availableList[0].ClientThread;
             }
-            if (serviceId > 0)
+            if (serviceId > 0 && serviceId < availableList.Length)
             {
                 threadId = serviceId;
                 return availableList[serviceId].ClientThread;
             }
-            int random = RandomNumber.GetInstance().Random(availableList.Length);
-            threadId = random;
-            return availableList[random].ClientThread;
+
+            // 根据配置的分配模式选择网关
+            var config = ConfigManager.Instance.GateConfig;
+            int selectedIndex = config.AllocationMode switch
+            {
+                Conf.ClientAllocationMode.RoundRobin => GetRoundRobinIndex(availableList.Length),
+                Conf.ClientAllocationMode.LeastConnections => GetLeastConnectionsIndex(availableList),
+                Conf.ClientAllocationMode.FillFirst => GetFillFirstIndex(availableList, config.MaxPlayersPerGate),
+                Conf.ClientAllocationMode.Weighted => GetWeightedIndex(availableList),
+                _ => RandomNumber.GetInstance().Random(availableList.Length) // 默认随机
+            };
+
+            threadId = selectedIndex;
+            return availableList[selectedIndex].ClientThread;
+        }
+
+        /// <summary>
+        /// 轮询分配
+        /// </summary>
+        private int GetRoundRobinIndex(int count)
+        {
+            int index = Interlocked.Increment(ref _roundRobinIndex) % count;
+            if (_roundRobinIndex > 100000)
+            {
+                Interlocked.Exchange(ref _roundRobinIndex, 0);
+            }
+            return index;
+        }
+
+        /// <summary>
+        /// 最小负载分配(分配到在线人数最少的网关)
+        /// </summary>
+        private int GetLeastConnectionsIndex(ServerService[] services)
+        {
+            int minIndex = 0;
+            int minCount = int.MaxValue;
+            for (int i = 0; i < services.Length; i++)
+            {
+                int count = services[i].ClientThread.SessionCount;
+                if (count < minCount)
+                {
+                    minCount = count;
+                    minIndex = i;
+                }
+            }
+            return minIndex;
+        }
+
+        /// <summary>
+        /// 填满优先(先填满一个网关再分配下一个)
+        /// </summary>
+        private int GetFillFirstIndex(ServerService[] services, int maxPerGate)
+        {
+            for (int i = 0; i < services.Length; i++)
+            {
+                if (services[i].ClientThread.SessionCount < maxPerGate)
+                {
+                    return i;
+                }
+            }
+            // 所有网关都满了，使用最小负载策略
+            return GetLeastConnectionsIndex(services);
+        }
+
+        /// <summary>
+        /// 按权重分配(权重基于剩余容量)
+        /// </summary>
+        private int GetWeightedIndex(ServerService[] services)
+        {
+            int maxPlayers = ConfigManager.Instance.GateConfig.MaxPlayersPerGate;
+            int totalWeight = 0;
+            int[] weights = new int[services.Length];
+
+            for (int i = 0; i < services.Length; i++)
+            {
+                int remaining = Math.Max(0, maxPlayers - services[i].ClientThread.SessionCount);
+                weights[i] = remaining;
+                totalWeight += remaining;
+            }
+
+            if (totalWeight <= 0)
+            {
+                return RandomNumber.GetInstance().Random(services.Length);
+            }
+
+            int randomWeight = RandomNumber.GetInstance().Random(totalWeight);
+            int cumulative = 0;
+            for (int i = 0; i < services.Length; i++)
+            {
+                cumulative += weights[i];
+                if (randomWeight < cumulative)
+                {
+                    return i;
+                }
+            }
+
+            return services.Length - 1;
         }
 
         /// <summary>

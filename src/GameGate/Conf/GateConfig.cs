@@ -1,6 +1,33 @@
 namespace GameGate.Conf
 {
     /// <summary>
+    /// 客户端分配模式
+    /// </summary>
+    public enum ClientAllocationMode
+    {
+        /// <summary>
+        /// 随机分配
+        /// </summary>
+        Random = 0,
+        /// <summary>
+        /// 轮询分配
+        /// </summary>
+        RoundRobin = 1,
+        /// <summary>
+        /// 最小负载(分配到在线人数最少的网关)
+        /// </summary>
+        LeastConnections = 2,
+        /// <summary>
+        /// 填满优先(先填满一个网关再分配下一个)
+        /// </summary>
+        FillFirst = 3,
+        /// <summary>
+        /// 按权重分配
+        /// </summary>
+        Weighted = 4
+    }
+
+    /// <summary>
     /// 网关配置类
     /// </summary>
     public class GateConfig
@@ -225,6 +252,15 @@ namespace GameGate.Conf
         public BlockIPMethod BlockIPMethod;
         public ChatFilterMethod ChatFilterMethod;
         public OverSpeedMsgMethod SpeedHackWarnMethod;
+        /// <summary>
+        /// 客户端分配模式
+        /// 0=随机分配 1=轮询分配 2=最小负载 3=填满优先 4=按权重分配
+        /// </summary>
+        public ClientAllocationMode AllocationMode;
+        /// <summary>
+        /// 单网关最大玩家数(填满优先模式使用)
+        /// </summary>
+        public int MaxPlayersPerGate;
 
         public GateConfig()
         {
@@ -299,6 +335,8 @@ namespace GameGate.Conf
             ClientAttackSpeedRate = 0;
             Debug = false;
             MessageWorkThread = 1;
+            AllocationMode = ClientAllocationMode.Random;
+            MaxPlayersPerGate = 500;
         }
     }
 }

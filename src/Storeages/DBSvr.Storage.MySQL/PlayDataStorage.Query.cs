@@ -238,7 +238,12 @@ namespace DBSrv.Storage.MySQL
                     humInfoData.ReLevel = dr.GetByte("ReLevel");
                     humInfoData.LockLogon = dr.GetBoolean("LockLogon");
                     humInfoData.BonusPoint = dr.GetInt32("BonusPoint");
-                    humInfoData.GameGold = dr.GetInt32("Gold");
+                    // 元宝字段：优先读取GameGold，如果不存在则兼容旧数据读取Gold
+                    try {
+                        humInfoData.GameGold = dr.GetInt32("GameGold");
+                    } catch {
+                        humInfoData.GameGold = dr.GetInt32("Gold"); // 兼容旧数据库
+                    }
                     humInfoData.GamePoint = dr.GetInt32("GamePoint");
                     humInfoData.PayMentPoint = dr.GetInt32("PayMentPoint");
                     humInfoData.HungerStatus = dr.GetInt32("HungerStatus");

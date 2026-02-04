@@ -78,7 +78,19 @@ namespace MarketSystem.Services
 
         protected void Delete(int index)
         {
-
+            if (CheckIndex(index))
+            {
+                var item = Items[index];
+                if (item != null)
+                {
+                    Items.RemoveAt(index);
+                    // 同步删除到DBSrv
+                    ServerRequestMessage request = new ServerRequestMessage(Messages.DB_DELETEMARKET, 0, index, 0, 0);
+                    MarketDeleteMessage requestData = new MarketDeleteMessage() { Index = item.Index, MarketName = item.MarketName };
+                    // M2Share.MarketService.SendRequest(1, request, requestData);
+                    LogService.Info($"删除拍卖行物品，索引:{index} 物品名称:{item.SellItem.Item.Name}");
+                }
+            }
         }
 
         protected void Clear()

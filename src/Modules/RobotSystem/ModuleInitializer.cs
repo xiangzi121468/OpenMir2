@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OpenMir2;
@@ -14,7 +14,8 @@ namespace RobotSystem
 
         public void Configure(IHostEnvironment env)
         {
-            throw new NotImplementedException();
+            // 机器人系统配置初始化
+            LogService.Debug($"RobotSystem 配置初始化, 环境: {env.EnvironmentName}");
         }
 
         public void ConfigureServices(IServiceCollection serviceCollection)

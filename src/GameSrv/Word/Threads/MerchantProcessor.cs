@@ -1,4 +1,4 @@
-﻿namespace GameSrv.Word.Threads
+namespace GameSrv.Word.Threads
 {
     public class MerchantProcessor : TimerScheduledService
     {
@@ -11,7 +11,7 @@
 
         public override void Initialize(CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            LogService.Info("商人管理处理器初始化...");
         }
 
         protected override void Startup(CancellationToken stoppingToken)

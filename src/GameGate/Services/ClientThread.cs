@@ -176,6 +176,25 @@ namespace GameGate.Services
             return sessionCount + "/" + OnlineCount;
         }
 
+        /// <summary>
+        /// 获取当前在线会话数
+        /// </summary>
+        public int SessionCount
+        {
+            get
+            {
+                int count = 0;
+                for (int i = 0; i < SessionArray.Length; i++)
+                {
+                    if (SessionArray[i] != null && SessionArray[i].Socket != null)
+                    {
+                        count++;
+                    }
+                }
+                return count;
+            }
+        }
+
         private Task ClientSocketConnect(IClient client, ConnectedEventArgs e)
         {
             IPHost endPoint = ((TcpClientBase)client).RemoteIPHost;

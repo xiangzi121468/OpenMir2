@@ -1,0 +1,1705 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenMir2 GM管理后台</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://unpkg.com/element-plus"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+        .login-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .login-box { width: 400px; padding: 40px; background: #fff; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+        .login-title { text-align: center; font-size: 24px; color: #333; margin-bottom: 30px; }
+        .admin-container { display: flex; min-height: 100vh; }
+        .sidebar { width: 220px; background: #304156; color: #bfcbd9; }
+        .sidebar-header { height: 60px; display: flex; align-items: center; justify-content: center; background: #263445; }
+        .sidebar-header h2 { color: #fff; font-size: 18px; }
+        .sidebar-menu { padding: 20px 0; }
+        .menu-item { padding: 15px 25px; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; }
+        .menu-item:hover, .menu-item.active { background: #263445; color: #409EFF; }
+        .menu-item i { margin-right: 10px; width: 20px; }
+        .main-content { flex: 1; display: flex; flex-direction: column; background: #f0f2f5; }
+        .header { height: 60px; background: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+        .content { flex: 1; padding: 20px; overflow-y: auto; }
+        .card { background: #fff; border-radius: 4px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .card-header { font-size: 16px; font-weight: 600; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
+        .stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px; }
+        .stat-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .stat-card .title { color: #666; font-size: 14px; margin-bottom: 10px; }
+        .stat-card .value { font-size: 28px; font-weight: 600; color: #333; }
+        .stat-card .sub { font-size: 12px; color: #999; margin-top: 5px; }
+        .chart-container { height: 300px; }
+        .search-bar { display: flex; gap: 10px; margin-bottom: 20px; }
+        @media (max-width: 768px) {
+            .stat-cards { grid-template-columns: repeat(2, 1fr); }
+            .sidebar { width: 60px; }
+            .menu-item span { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 登录页面 -->
+        <div v-if="!isLoggedIn" class="login-container">
+            <div class="login-box">
+                <h1 class="login-title">GM管理后台</h1>
+                <el-form :model="loginForm" :rules="loginRules" ref="loginFormRef">
+                    <el-form-item prop="username">
+                        <el-input v-model="loginForm.username" placeholder="用户名" prefix-icon="User" size="large"></el-input>
+                    </el-form-item>
+                    <el-form-item prop="password">
+                        <el-input v-model="loginForm.password" type="password" placeholder="密码" prefix-icon="Lock" size="large" @keyup.enter="handleLogin"></el-input>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-button type="primary" size="large" style="width: 100%" @click="handleLogin" :loading="loading">登 录</el-button>
+                    </el-form-item>
+                </el-form>
+                <p style="text-align: center; color: #999; font-size: 12px;">默认账号: admin / admin123</p>
+            </div>
+        </div>
+
+        <!-- 管理后台 -->
+        <div v-else class="admin-container">
+            <!-- 侧边栏 -->
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <h2>GM后台</h2>
+                </div>
+                <div class="sidebar-menu">
+                    <div class="menu-item" :class="{active: currentMenu === 'dashboard'}" @click="currentMenu = 'dashboard'">
+                        <i>📊</i> <span>数据概览</span>
+                    </div>
+                    <div class="menu-item" :class="{active: currentMenu === 'players'}" @click="currentMenu = 'players'">
+                        <i>👥</i> <span>玩家管理</span>
+                    </div>
+                    <div class="menu-item" :class="{active: currentMenu === 'shop'}" @click="currentMenu = 'shop'">
+                        <i>🛒</i> <span>商城管理</span>
+                    </div>
+                    <div class="menu-item" :class="{active: currentMenu === 'recharge'}" @click="currentMenu = 'recharge'">
+                        <i>💰</i> <span>充值记录</span>
+                    </div>
+                    <div class="menu-item" :class="{active: currentMenu === 'giftcode'}" @click="currentMenu = 'giftcode'">
+                        <i>🎁</i> <span>礼包码</span>
+                    </div>
+                    <div class="menu-item" :class="{active: currentMenu === 'ban'}" @click="currentMenu = 'ban'">
+                        <i>🚫</i> <span>封禁管理</span>
+                    </div>
+                    <div class="menu-item" :class="{active: currentMenu === 'notice'}" @click="currentMenu = 'notice'">
+                        <i>📢</i> <span>公告管理</span>
+                    </div>
+                    <div class="menu-item" :class="{active: currentMenu === 'activity'}" @click="currentMenu = 'activity'">
+                        <i>🎮</i> <span>活动管理</span>
+                    </div>
+                    <div class="menu-item" :class="{active: currentMenu === 'vipmap'}" @click="currentMenu = 'vipmap'">
+                        <i>👑</i> <span>VIP地图</span>
+                    </div>
+                    <div class="menu-item" :class="{active: currentMenu === 'logs'}" @click="currentMenu = 'logs'">
+                        <i>📝</i> <span>操作日志</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主内容区 -->
+            <div class="main-content">
+                <div class="header">
+                    <span>欢迎，{{ userInfo.nickname || userInfo.username }}</span>
+                    <el-button type="danger" size="small" @click="handleLogout">退出登录</el-button>
+                </div>
+
+                <div class="content">
+                    <!-- 数据概览 -->
+                    <div v-show="currentMenu === 'dashboard'">
+                        <div class="stat-cards">
+                            <div class="stat-card">
+                                <div class="title">总账号数</div>
+                                <div class="value">{{ dashboard.totalAccounts }}</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="title">总角色数</div>
+                                <div class="value">{{ dashboard.totalCharacters }}</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="title">今日新增</div>
+                                <div class="value">{{ dashboard.newAccounts }}</div>
+                                <div class="sub">角色: {{ dashboard.newCharacters }}</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="title">今日充值</div>
+                                <div class="value">¥{{ dashboard.todayRecharge?.amount || 0 }}</div>
+                                <div class="sub">{{ dashboard.todayRecharge?.count || 0 }}笔</div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">近30天趋势</div>
+                            <div id="trendChart" class="chart-container"></div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div class="card">
+                                <div class="card-header">等级分布</div>
+                                <div id="levelChart" class="chart-container"></div>
+                            </div>
+                            <div class="card">
+                                <div class="card-header">职业分布</div>
+                                <div id="jobChart" class="chart-container"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 玩家管理 -->
+                    <div v-show="currentMenu === 'players'" class="card">
+                        <div class="card-header">玩家管理</div>
+                        <div class="search-bar">
+                            <el-input v-model="playerSearch" placeholder="搜索角色名/账号" style="width: 250px" @keyup.enter="searchPlayers"></el-input>
+                            <el-button type="primary" @click="searchPlayers">搜索</el-button>
+                        </div>
+                        <el-table :data="players" border stripe>
+                            <el-table-column prop="id" label="ID" width="80"></el-table-column>
+                            <el-table-column prop="chrName" label="角色名" width="120"></el-table-column>
+                            <el-table-column prop="loginId" label="账号" width="120"></el-table-column>
+                            <el-table-column prop="level" label="等级" width="80"></el-table-column>
+                            <el-table-column prop="job" label="职业" width="80">
+                                <template #default="{row}">{{ ['战士','法师','道士'][row.job] || '未知' }}</template>
+                            </el-table-column>
+                            <el-table-column prop="gold" label="元宝" width="100"></el-table-column>
+                            <el-table-column prop="mapName" label="地图" width="100"></el-table-column>
+                            <el-table-column label="操作" width="200">
+                                <template #default="{row}">
+                                    <el-button size="small" @click="showGoldDialog(row)">改元宝</el-button>
+                                    <el-button size="small" type="danger" @click="showBanDialog(row)">封禁</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                        <el-pagination style="margin-top: 15px" :current-page="playerPage" :page-size="20" :total="playerTotal" @current-change="handlePlayerPageChange"></el-pagination>
+                    </div>
+
+                    <!-- 商城管理 -->
+                    <div v-show="currentMenu === 'shop'" class="card">
+                        <div class="card-header">商城管理</div>
+                        <el-button type="primary" @click="showAddItemDialog" style="margin-bottom: 15px">添加商品</el-button>
+                        <el-table :data="shopItems" border stripe>
+                            <el-table-column prop="id" label="ID" width="60"></el-table-column>
+                            <el-table-column prop="displayName" label="名称" width="150"></el-table-column>
+                            <el-table-column prop="itemName" label="物品" width="120"></el-table-column>
+                            <el-table-column prop="price" label="价格" width="80"></el-table-column>
+                            <el-table-column prop="stock" label="库存" width="80">
+                                <template #default="{row}">{{ row.stock < 0 ? '无限' : row.stock }}</template>
+                            </el-table-column>
+                            <el-table-column prop="soldCount" label="已售" width="80"></el-table-column>
+                            <el-table-column prop="isEnabled" label="状态" width="80">
+                                <template #default="{row}">
+                                    <el-tag :type="row.isEnabled ? 'success' : 'info'">{{ row.isEnabled ? '上架' : '下架' }}</el-tag>
+                                </template>
+                            </el-table-column>
+                            <el-table-column label="操作" width="150">
+                                <template #default="{row}">
+                                    <el-button size="small" @click="editShopItem(row)">编辑</el-button>
+                                    <el-button size="small" type="danger" @click="deleteShopItem(row)">删除</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </div>
+
+                    <!-- 充值记录 -->
+                    <div v-show="currentMenu === 'recharge'" class="card">
+                        <div class="card-header">充值记录</div>
+                        <div class="search-bar">
+                            <el-input v-model="rechargeSearch" placeholder="搜索订单号/账号" style="width: 250px"></el-input>
+                            <el-date-picker v-model="rechargeDateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期"></el-date-picker>
+                            <el-button type="primary" @click="searchRecharges">搜索</el-button>
+                        </div>
+                        <el-table :data="recharges" border stripe>
+                            <el-table-column prop="orderNo" label="订单号" width="200"></el-table-column>
+                            <el-table-column prop="accountId" label="账号" width="120"></el-table-column>
+                            <el-table-column prop="amount" label="金额" width="80"></el-table-column>
+                            <el-table-column prop="gameGold" label="元宝" width="80"></el-table-column>
+                            <el-table-column prop="bonusGold" label="赠送" width="80"></el-table-column>
+                            <el-table-column prop="payChannel" label="渠道" width="80"></el-table-column>
+                            <el-table-column prop="status" label="状态" width="80">
+                                <template #default="{row}">
+                                    <el-tag :type="['info','warning','success','danger','danger'][row.status]">
+                                        {{ ['待支付','已支付','已发放','失败','退款'][row.status] }}
+                                    </el-tag>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="createTime" label="时间" width="160"></el-table-column>
+                        </el-table>
+                        <el-pagination style="margin-top: 15px" :current-page="rechargePage" :page-size="20" :total="rechargeTotal" @current-change="handleRechargePageChange"></el-pagination>
+                    </div>
+
+                    <!-- 礼包码 -->
+                    <div v-show="currentMenu === 'giftcode'" class="card">
+                        <div class="card-header">礼包码管理</div>
+                        <el-button type="primary" @click="showGenCodeDialog" style="margin-bottom: 15px">批量生成</el-button>
+                        <el-table :data="giftcodes" border stripe>
+                            <el-table-column prop="code" label="礼包码" width="150"></el-table-column>
+                            <el-table-column prop="name" label="名称" width="120"></el-table-column>
+                            <el-table-column prop="batchNo" label="批次" width="150"></el-table-column>
+                            <el-table-column prop="gameGold" label="元宝" width="80"></el-table-column>
+                            <el-table-column label="使用情况" width="100">
+                                <template #default="{row}">{{ row.usedCount }} / {{ row.maxUseCount }}</template>
+                            </el-table-column>
+                            <el-table-column prop="endTime" label="过期时间" width="160"></el-table-column>
+                            <el-table-column prop="isEnabled" label="状态" width="80">
+                                <template #default="{row}">
+                                    <el-tag :type="row.isEnabled ? 'success' : 'info'">{{ row.isEnabled ? '有效' : '禁用' }}</el-tag>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </div>
+
+                    <!-- 封禁管理 -->
+                    <div v-show="currentMenu === 'ban'" class="card">
+                        <div class="card-header">封禁管理</div>
+                        <el-table :data="bans" border stripe>
+                            <el-table-column prop="banType" label="类型" width="80"></el-table-column>
+                            <el-table-column prop="banValue" label="封禁值" width="150"></el-table-column>
+                            <el-table-column prop="charName" label="角色" width="100"></el-table-column>
+                            <el-table-column prop="reason" label="原因" width="200"></el-table-column>
+                            <el-table-column prop="duration" label="时长(分钟)" width="100">
+                                <template #default="{row}">{{ row.duration < 0 ? '永久' : row.duration }}</template>
+                            </el-table-column>
+                            <el-table-column prop="adminName" label="操作人" width="100"></el-table-column>
+                            <el-table-column prop="status" label="状态" width="80">
+                                <template #default="{row}">
+                                    <el-tag :type="row.status === 1 ? 'danger' : 'success'">{{ row.status === 1 ? '封禁中' : '已解封' }}</el-tag>
+                                </template>
+                            </el-table-column>
+                            <el-table-column label="操作" width="100">
+                                <template #default="{row}">
+                                    <el-button v-if="row.status === 1" size="small" type="success" @click="unbanPlayer(row)">解封</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </div>
+
+                    <!-- 公告管理 -->
+                    <div v-show="currentMenu === 'notice'" class="card">
+                        <div class="card-header">公告管理</div>
+                        <div class="search-bar">
+                            <el-select v-model="noticeTypeFilter" placeholder="公告类型" style="width: 150px" clearable>
+                                <el-option label="登录公告" value="login"></el-option>
+                                <el-option label="全服广播" value="broadcast"></el-option>
+                                <el-option label="滚动公告" value="scroll"></el-option>
+                                <el-option label="定时公告" value="schedule"></el-option>
+                                <el-option label="地图公告" value="map"></el-option>
+                            </el-select>
+                            <el-button type="primary" @click="loadNotices">搜索</el-button>
+                            <el-button type="success" @click="showAddNoticeDialog">添加公告</el-button>
+                            <el-button type="warning" @click="showSendDialog">立即发送</el-button>
+                        </div>
+                        <el-table :data="notices" border stripe>
+                            <el-table-column prop="id" label="ID" width="60"></el-table-column>
+                            <el-table-column prop="title" label="标题" width="150"></el-table-column>
+                            <el-table-column prop="noticeType" label="类型" width="100">
+                                <template #default="{row}">
+                                    <el-tag :type="noticeTypeTag(row.noticeType)">{{ noticeTypeName(row.noticeType) }}</el-tag>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="priority" label="优先级" width="80">
+                                <template #default="{row}">
+                                    <el-tag :type="['info','warning','danger'][row.priority]">{{ ['普通','重要','紧急'][row.priority] }}</el-tag>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="content" label="内容" min-width="200" show-overflow-tooltip></el-table-column>
+                            <el-table-column prop="sentCount" label="发送次数" width="90"></el-table-column>
+                            <el-table-column prop="isEnabled" label="状态" width="80">
+                                <template #default="{row}">
+                                    <el-switch v-model="row.isEnabled" @change="toggleNotice(row)"></el-switch>
+                                </template>
+                            </el-table-column>
+                            <el-table-column label="操作" width="150">
+                                <template #default="{row}">
+                                    <el-button size="small" @click="editNotice(row)">编辑</el-button>
+                                    <el-button size="small" type="danger" @click="deleteNotice(row)">删除</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                        <el-pagination style="margin-top: 15px" :current-page="noticePage" :page-size="20" :total="noticeTotal" @current-change="handleNoticePageChange"></el-pagination>
+                    </div>
+
+                    <!-- 活动管理 -->
+                    <div v-show="currentMenu === 'activity'">
+                        <!-- 活动状态概览 -->
+                        <div class="stat-cards" style="grid-template-columns: repeat(5, 1fr);">
+                            <div class="stat-card">
+                                <div class="title">总活动数</div>
+                                <div class="value">{{ activityStats.totalActivities || 0 }}</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="title">已启用</div>
+                                <div class="value" style="color: #67C23A">{{ activityStats.enabledActivities || 0 }}</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="title">运行中</div>
+                                <div class="value" style="color: #E6A23C">{{ activityStats.runningActivities || 0 }}</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="title">当前经验倍率</div>
+                                <div class="value" style="color: #409EFF">{{ currentExpRate }}x</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="title">当前掉落倍率</div>
+                                <div class="value" style="color: #F56C6C">{{ currentDropRate }}x</div>
+                            </div>
+                        </div>
+
+                        <!-- 运行中的活动 -->
+                        <div class="card" v-if="runningActivities.length > 0">
+                            <div class="card-header">🔥 运行中的活动</div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 15px;">
+                                <div v-for="act in runningActivities" :key="act.activityId" 
+                                     style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; padding: 15px 20px; border-radius: 8px; min-width: 200px;">
+                                    <div style="font-size: 16px; font-weight: 600;">{{ act.name }}</div>
+                                    <div style="font-size: 12px; margin-top: 5px; opacity: 0.9;">{{ activityTypeName(act.activityType) }}</div>
+                                    <div style="font-size: 12px; margin-top: 5px;">
+                                        剩余: {{ formatTimeRemaining(act.endTime) }}
+                                    </div>
+                                    <el-button size="small" type="danger" style="margin-top: 10px" @click="stopActivity(act.activityId)">停止</el-button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 活动列表 -->
+                        <div class="card">
+                            <div class="card-header">活动配置</div>
+                            <div class="search-bar">
+                                <el-select v-model="activityTypeFilter" placeholder="活动类型" style="width: 150px" clearable>
+                                    <el-option v-for="t in activityTypes" :key="t.value" :label="t.label" :value="t.value"></el-option>
+                                </el-select>
+                                <el-select v-model="activityStatusFilter" placeholder="状态" style="width: 120px" clearable>
+                                    <el-option label="已启用" :value="true"></el-option>
+                                    <el-option label="已禁用" :value="false"></el-option>
+                                </el-select>
+                                <el-input v-model="activityKeyword" placeholder="搜索活动名称" style="width: 200px" clearable></el-input>
+                                <el-button type="primary" @click="loadActivities">搜索</el-button>
+                                <el-button type="success" @click="showAddActivityDialog">添加活动</el-button>
+                            </div>
+                            <el-table :data="activities" border stripe>
+                                <el-table-column prop="id" label="ID" width="60"></el-table-column>
+                                <el-table-column prop="name" label="活动名称" width="150">
+                                    <template #default="{row}">
+                                        <span :style="{color: row.color}">{{ row.name }}</span>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column prop="activityType" label="类型" width="100">
+                                    <template #default="{row}">
+                                        <el-tag :color="row.color" style="color:#fff">{{ activityTypeName(row.activityType) }}</el-tag>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column prop="scheduleType" label="调度" width="80">
+                                    <template #default="{row}">{{ scheduleTypeName(row.scheduleType) }}</template>
+                                </el-table-column>
+                                <el-table-column label="时间配置" width="150">
+                                    <template #default="{row}">
+                                        <span v-if="row.scheduleType === 'interval'">每{{ row.scheduleRule }}分钟</span>
+                                        <span v-else-if="row.startTime">{{ row.startTime?.substring(0,5) }} ({{ row.durationMinutes }}分钟)</span>
+                                        <span v-else>-</span>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column prop="totalRuns" label="运行次数" width="90"></el-table-column>
+                                <el-table-column prop="isEnabled" label="状态" width="80">
+                                    <template #default="{row}">
+                                        <el-tag v-if="row.isRunning" type="warning">运行中</el-tag>
+                                        <el-switch v-else v-model="row.isEnabled" @change="toggleActivity(row)"></el-switch>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column label="操作" width="200">
+                                    <template #default="{row}">
+                                        <el-button size="small" @click="editActivity(row)">编辑</el-button>
+                                        <el-button v-if="!row.isRunning" size="small" type="success" @click="startActivity(row.id)">启动</el-button>
+                                        <el-button v-else size="small" type="warning" @click="stopActivity(row.id)">停止</el-button>
+                                        <el-button size="small" type="danger" @click="deleteActivity(row)">删除</el-button>
+                                    </template>
+                                </el-table-column>
+                            </el-table>
+                            <el-pagination style="margin-top: 15px" :current-page="activityPage" :page-size="20" :total="activityTotal" @current-change="handleActivityPageChange"></el-pagination>
+                        </div>
+
+                        <!-- 活动日志 -->
+                        <div class="card">
+                            <div class="card-header">活动运行日志</div>
+                            <el-table :data="activityLogs" border stripe max-height="300">
+                                <el-table-column prop="activityName" label="活动" width="120"></el-table-column>
+                                <el-table-column prop="action" label="动作" width="80">
+                                    <template #default="{row}">
+                                        <el-tag :type="row.action === 'start' ? 'success' : row.action === 'end' ? 'info' : 'danger'">
+                                            {{ {start:'开始',end:'结束',trigger:'触发',error:'错误'}[row.action] || row.action }}
+                                        </el-tag>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column prop="status" label="状态" width="80">
+                                    <template #default="{row}">
+                                        <el-tag :type="row.status === 'success' ? 'success' : 'danger'">{{ row.status === 'success' ? '成功' : '失败' }}</el-tag>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column prop="participants" label="参与人数" width="90"></el-table-column>
+                                <el-table-column prop="message" label="消息" min-width="200" show-overflow-tooltip></el-table-column>
+                                <el-table-column prop="createdAt" label="时间" width="160"></el-table-column>
+                            </el-table>
+                        </div>
+                    </div>
+
+                    <!-- VIP地图管理 -->
+                    <div v-show="currentMenu === 'vipmap'">
+                        <!-- VIP等级说明 -->
+                        <div class="card">
+                            <div class="card-header">VIP等级配置</div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 15px;">
+                                <div v-for="level in vipLevels" :key="level.level" 
+                                     :style="{background: 'linear-gradient(135deg, ' + level.color + '22 0%, #1a1a2e 100%)', border: '1px solid ' + level.color}"
+                                     style="padding: 15px; border-radius: 8px; min-width: 180px;">
+                                    <div style="font-size: 18px;">{{ level.icon }} {{ level.name }}</div>
+                                    <div style="font-size: 12px; color: #999; margin-top: 5px;">充值 {{ level.minRecharge }} 元</div>
+                                    <div style="font-size: 12px; margin-top: 5px;">{{ level.benefits }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- VIP地图列表 -->
+                        <div class="card">
+                            <div class="card-header">VIP地图配置</div>
+                            <el-button type="success" @click="showAddVipMapDialog" style="margin-bottom: 15px">添加VIP地图</el-button>
+                            <el-table :data="vipMaps" border stripe>
+                                <el-table-column prop="id" label="ID" width="60"></el-table-column>
+                                <el-table-column prop="mapName" label="地图名称" width="150">
+                                    <template #default="{row}">
+                                        <span style="font-weight: 600;">{{ row.mapName }}</span>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column prop="mapId" label="地图ID" width="100"></el-table-column>
+                                <el-table-column label="VIP要求" width="120">
+                                    <template #default="{row}">
+                                        VIP{{ row.minVipLevel }} ({{ row.minRecharge }}元)
+                                    </template>
+                                </el-table-column>
+                                <el-table-column prop="levelLimit" label="等级限制" width="90"></el-table-column>
+                                <el-table-column label="每日次数" width="90">
+                                    <template #default="{row}">{{ row.dailyLimit < 0 ? '无限' : row.dailyLimit }}</template>
+                                </el-table-column>
+                                <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip></el-table-column>
+                                <el-table-column prop="isEnabled" label="状态" width="80">
+                                    <template #default="{row}">
+                                        <el-tag :type="row.isEnabled ? 'success' : 'info'">{{ row.isEnabled ? '启用' : '禁用' }}</el-tag>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column label="操作" width="200">
+                                    <template #default="{row}">
+                                        <el-button size="small" @click="editVipMap(row)">编辑</el-button>
+                                        <el-button size="small" type="primary" @click="showVipMapScript(row)">脚本</el-button>
+                                        <el-button size="small" type="danger" @click="deleteVipMap(row)">删除</el-button>
+                                    </template>
+                                </el-table-column>
+                            </el-table>
+                        </div>
+                    </div>
+
+                    <!-- 操作日志 -->
+                    <div v-show="currentMenu === 'logs'" class="card">
+                        <div class="card-header">操作日志</div>
+                        <el-table :data="logs" border stripe>
+                            <el-table-column prop="adminName" label="管理员" width="100"></el-table-column>
+                            <el-table-column prop="module" label="模块" width="80"></el-table-column>
+                            <el-table-column prop="action" label="操作" width="100"></el-table-column>
+                            <el-table-column prop="target" label="对象" width="120"></el-table-column>
+                            <el-table-column prop="content" label="内容" min-width="200"></el-table-column>
+                            <el-table-column prop="ipAddress" label="IP" width="120"></el-table-column>
+                            <el-table-column prop="createTime" label="时间" width="160"></el-table-column>
+                        </el-table>
+                        <el-pagination style="margin-top: 15px" :current-page="logPage" :page-size="20" :total="logTotal" @current-change="handleLogPageChange"></el-pagination>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 修改元宝对话框 -->
+        <el-dialog v-model="goldDialogVisible" title="修改元宝" width="400px">
+            <el-form :model="goldForm" label-width="80px">
+                <el-form-item label="角色名">
+                    <el-input :value="goldForm.charName" disabled></el-input>
+                </el-form-item>
+                <el-form-item label="当前元宝">
+                    <el-input :value="goldForm.currentGold" disabled></el-input>
+                </el-form-item>
+                <el-form-item label="操作类型">
+                    <el-radio-group v-model="goldForm.type">
+                        <el-radio label="set">设为</el-radio>
+                        <el-radio label="add">增加</el-radio>
+                        <el-radio label="sub">扣除</el-radio>
+                    </el-radio-group>
+                </el-form-item>
+                <el-form-item label="数量">
+                    <el-input-number v-model="goldForm.amount" :min="0" :max="100000000"></el-input-number>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="goldDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="submitGoldChange">确定</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- 封禁对话框 -->
+        <el-dialog v-model="banDialogVisible" title="封禁玩家" width="400px">
+            <el-form :model="banForm" label-width="80px">
+                <el-form-item label="角色名">
+                    <el-input :value="banForm.charName" disabled></el-input>
+                </el-form-item>
+                <el-form-item label="封禁类型">
+                    <el-select v-model="banForm.banType">
+                        <el-option label="账号" value="account"></el-option>
+                        <el-option label="IP" value="ip"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="时长(分钟)">
+                    <el-input-number v-model="banForm.duration" :min="-1"></el-input-number>
+                    <span style="margin-left: 10px; color: #999;">-1为永久</span>
+                </el-form-item>
+                <el-form-item label="原因">
+                    <el-input v-model="banForm.reason" type="textarea"></el-input>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="banDialogVisible = false">取消</el-button>
+                <el-button type="danger" @click="submitBan">确定封禁</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- 生成礼包码对话框 -->
+        <el-dialog v-model="genCodeDialogVisible" title="批量生成礼包码" width="450px">
+            <el-form :model="genCodeForm" label-width="100px">
+                <el-form-item label="礼包名称">
+                    <el-input v-model="genCodeForm.name"></el-input>
+                </el-form-item>
+                <el-form-item label="批次号">
+                    <el-input v-model="genCodeForm.batchNo" placeholder="留空自动生成"></el-input>
+                </el-form-item>
+                <el-form-item label="赠送元宝">
+                    <el-input-number v-model="genCodeForm.gameGold" :min="0"></el-input-number>
+                </el-form-item>
+                <el-form-item label="生成数量">
+                    <el-input-number v-model="genCodeForm.count" :min="1" :max="10000"></el-input-number>
+                </el-form-item>
+                <el-form-item label="过期时间">
+                    <el-date-picker v-model="genCodeForm.endTime" type="datetime" placeholder="留空永不过期"></el-date-picker>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="genCodeDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="submitGenCode">生成</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- 添加/编辑公告对话框 -->
+        <el-dialog v-model="noticeDialogVisible" :title="noticeForm.id ? '编辑公告' : '添加公告'" width="600px">
+            <el-form :model="noticeForm" label-width="100px">
+                <el-form-item label="标题">
+                    <el-input v-model="noticeForm.title" placeholder="公告标题"></el-input>
+                </el-form-item>
+                <el-form-item label="类型">
+                    <el-select v-model="noticeForm.noticeType" style="width: 100%">
+                        <el-option label="登录公告" value="login"></el-option>
+                        <el-option label="全服广播" value="broadcast"></el-option>
+                        <el-option label="滚动公告" value="scroll"></el-option>
+                        <el-option label="定时公告" value="schedule"></el-option>
+                        <el-option label="地图公告" value="map"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="内容">
+                    <el-input v-model="noticeForm.content" type="textarea" :rows="4" placeholder="公告内容"></el-input>
+                </el-form-item>
+                <el-form-item label="优先级">
+                    <el-radio-group v-model="noticeForm.priority">
+                        <el-radio :label="0">普通</el-radio>
+                        <el-radio :label="1">重要</el-radio>
+                        <el-radio :label="2">紧急</el-radio>
+                    </el-radio-group>
+                </el-form-item>
+                <el-form-item label="颜色">
+                    <el-select v-model="noticeForm.color" style="width: 150px">
+                        <el-option label="黄色" value="yellow"></el-option>
+                        <el-option label="红色" value="red"></el-option>
+                        <el-option label="绿色" value="green"></el-option>
+                        <el-option label="蓝色" value="blue"></el-option>
+                        <el-option label="白色" value="white"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="重复间隔(秒)" v-if="noticeForm.noticeType === 'scroll'">
+                    <el-input-number v-model="noticeForm.repeatInterval" :min="0"></el-input-number>
+                </el-form-item>
+                <el-form-item label="定时表达式" v-if="noticeForm.noticeType === 'schedule'">
+                    <el-input v-model="noticeForm.scheduleCron" placeholder="如: 0 12 * * * (每天12点)"></el-input>
+                </el-form-item>
+                <el-form-item label="目标地图" v-if="noticeForm.noticeType === 'map'">
+                    <el-input v-model="noticeForm.targetMap" placeholder="地图名称"></el-input>
+                </el-form-item>
+                <el-form-item label="生效时间">
+                    <el-date-picker v-model="noticeForm.startTime" type="datetime" placeholder="开始时间"></el-date-picker>
+                    <span style="margin: 0 10px;">至</span>
+                    <el-date-picker v-model="noticeForm.endTime" type="datetime" placeholder="结束时间"></el-date-picker>
+                </el-form-item>
+                <el-form-item label="启用">
+                    <el-switch v-model="noticeForm.isEnabled"></el-switch>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="noticeDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="submitNotice">确定</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- VIP地图编辑对话框 -->
+        <el-dialog v-model="vipMapDialogVisible" :title="vipMapForm.id ? '编辑VIP地图' : '添加VIP地图'" width="650px">
+            <el-form :model="vipMapForm" label-width="100px">
+                <el-row :gutter="20">
+                    <el-col :span="12">
+                        <el-form-item label="地图ID" required>
+                            <el-input v-model="vipMapForm.mapId" placeholder="如: VIPHALL1"></el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="地图名称" required>
+                            <el-input v-model="vipMapForm.mapName" placeholder="如: 贵族VIP大厅"></el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-form-item label="地图描述">
+                    <el-input v-model="vipMapForm.description" type="textarea" :rows="2"></el-input>
+                </el-form-item>
+                <el-row :gutter="20">
+                    <el-col :span="8">
+                        <el-form-item label="最低VIP">
+                            <el-select v-model="vipMapForm.minVipLevel" style="width: 100%">
+                                <el-option v-for="l in vipLevels" :key="l.level" :label="l.name" :value="l.level"></el-option>
+                            </el-select>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-form-item label="最低充值(元)">
+                            <el-input-number v-model="vipMapForm.minRecharge" :min="0"></el-input-number>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-form-item label="等级限制">
+                            <el-input-number v-model="vipMapForm.levelLimit" :min="1" :max="999"></el-input-number>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-row :gutter="20">
+                    <el-col :span="8">
+                        <el-form-item label="入场费(元宝)">
+                            <el-input-number v-model="vipMapForm.entryFee" :min="0"></el-input-number>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-form-item label="每日次数">
+                            <el-input-number v-model="vipMapForm.dailyLimit" :min="-1"></el-input-number>
+                            <div style="font-size: 11px; color: #999;">-1=无限</div>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-form-item label="启用">
+                            <el-switch v-model="vipMapForm.isEnabled"></el-switch>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-divider>进入方式</el-divider>
+                <el-row :gutter="20">
+                    <el-col :span="12">
+                        <el-form-item label="随机进入">
+                            <el-switch v-model="vipMapForm.isRandomEntry"></el-switch>
+                        </el-form-item>
+                        <div v-if="vipMapForm.isRandomEntry" style="padding-left: 100px;">
+                            <div>X: {{ vipMapForm.randomXMin }} - {{ vipMapForm.randomXMax }}</div>
+                            <el-slider v-model="vipMapForm.randomXRange" range :min="0" :max="500" @change="v => { vipMapForm.randomXMin = v[0]; vipMapForm.randomXMax = v[1]; }"></el-slider>
+                            <div>Y: {{ vipMapForm.randomYMin }} - {{ vipMapForm.randomYMax }}</div>
+                            <el-slider v-model="vipMapForm.randomYRange" range :min="0" :max="500" @change="v => { vipMapForm.randomYMin = v[0]; vipMapForm.randomYMax = v[1]; }"></el-slider>
+                        </div>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="定点进入">
+                            <el-switch v-model="vipMapForm.isFixedEntry"></el-switch>
+                        </el-form-item>
+                        <div v-if="vipMapForm.isFixedEntry" style="padding-left: 100px;">
+                            <div>X: <el-input-number v-model="vipMapForm.fixedX" :min="0" :max="500" size="small"></el-input-number></div>
+                            <div style="margin-top: 10px;">Y: <el-input-number v-model="vipMapForm.fixedY" :min="0" :max="500" size="small"></el-input-number></div>
+                        </div>
+                    </el-col>
+                </el-row>
+            </el-form>
+            <template #footer>
+                <el-button @click="vipMapDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="submitVipMap">保存</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- VIP地图脚本预览对话框 -->
+        <el-dialog v-model="vipScriptDialogVisible" title="NPC脚本预览" width="700px">
+            <div style="background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; max-height: 500px; overflow-y: auto;">{{ vipMapScript }}</div>
+            <template #footer>
+                <el-button @click="copyVipScript">复制脚本</el-button>
+                <el-button type="primary" @click="vipScriptDialogVisible = false">关闭</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- 活动编辑对话框 -->
+        <el-dialog v-model="activityDialogVisible" :title="activityForm.id ? '编辑活动' : '添加活动'" width="700px">
+            <el-form :model="activityForm" label-width="100px">
+                <el-row :gutter="20">
+                    <el-col :span="12">
+                        <el-form-item label="活动名称" required>
+                            <el-input v-model="activityForm.name" placeholder="如：双倍经验时间"></el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="活动类型" required>
+                            <el-select v-model="activityForm.activityType" style="width: 100%">
+                                <el-option v-for="t in activityTypes" :key="t.value" :label="t.label" :value="t.value">
+                                    <span>{{ t.icon }} {{ t.label }}</span>
+                                </el-option>
+                            </el-select>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-form-item label="活动描述">
+                    <el-input v-model="activityForm.description" type="textarea" :rows="2" placeholder="活动描述，会显示在公告中"></el-input>
+                </el-form-item>
+                <el-row :gutter="20">
+                    <el-col :span="12">
+                        <el-form-item label="调度类型">
+                            <el-select v-model="activityForm.scheduleType" style="width: 100%">
+                                <el-option label="一次性" value="once"></el-option>
+                                <el-option label="每日" value="daily"></el-option>
+                                <el-option label="每周" value="weekly"></el-option>
+                                <el-option label="间隔(分钟)" value="interval"></el-option>
+                                <el-option label="Cron表达式" value="cron"></el-option>
+                            </el-select>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="调度规则" v-if="activityForm.scheduleType === 'interval'">
+                            <el-input-number v-model.number="activityForm.scheduleRule" :min="1" placeholder="间隔分钟"></el-input-number>
+                            <span style="margin-left: 5px">分钟</span>
+                        </el-form-item>
+                        <el-form-item label="Cron表达式" v-else-if="activityForm.scheduleType === 'cron'">
+                            <el-input v-model="activityForm.scheduleRule" placeholder="分 时 日 月 周"></el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-row :gutter="20">
+                    <el-col :span="8">
+                        <el-form-item label="开始时间">
+                            <el-time-picker v-model="activityForm.startTime" format="HH:mm" value-format="HH:mm:ss" placeholder="开始时间"></el-time-picker>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-form-item label="持续时间">
+                            <el-input-number v-model="activityForm.durationMinutes" :min="1" :max="1440"></el-input-number>
+                            <span style="margin-left: 5px">分钟</span>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-form-item label="优先级">
+                            <el-input-number v-model="activityForm.priority" :min="1" :max="999"></el-input-number>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-form-item label="生效星期" v-if="activityForm.scheduleType === 'weekly'">
+                    <el-checkbox-group v-model="activityForm.weekDaysArray">
+                        <el-checkbox label="1">周一</el-checkbox>
+                        <el-checkbox label="2">周二</el-checkbox>
+                        <el-checkbox label="3">周三</el-checkbox>
+                        <el-checkbox label="4">周四</el-checkbox>
+                        <el-checkbox label="5">周五</el-checkbox>
+                        <el-checkbox label="6">周六</el-checkbox>
+                        <el-checkbox label="7">周日</el-checkbox>
+                    </el-checkbox-group>
+                </el-form-item>
+                <el-row :gutter="20">
+                    <el-col :span="12">
+                        <el-form-item label="显示颜色">
+                            <el-color-picker v-model="activityForm.color"></el-color-picker>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="启用">
+                            <el-switch v-model="activityForm.isEnabled"></el-switch>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+
+                <!-- 活动参数 -->
+                <el-divider>活动参数</el-divider>
+                <div v-if="activityForm.activityType === 'exp_boost' || activityForm.activityType === 'party'">
+                    <el-row :gutter="20">
+                        <el-col :span="8">
+                            <el-form-item label="经验倍率">
+                                <el-input-number v-model="activityParams.exp_rate" :min="1" :max="10" :step="0.5"></el-input-number>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="8">
+                            <el-form-item label="掉落倍率">
+                                <el-input-number v-model="activityParams.drop_rate" :min="1" :max="10" :step="0.5"></el-input-number>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
+                </div>
+                <div v-else-if="activityForm.activityType === 'boss_spawn'">
+                    <el-row :gutter="20">
+                        <el-col :span="8">
+                            <el-form-item label="BOSS名称">
+                                <el-input v-model="activityParams.boss_name" placeholder="怪物名称"></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="8">
+                            <el-form-item label="刷新地图">
+                                <el-input v-model="activityParams.spawn_map" placeholder="地图ID"></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="8">
+                            <el-form-item label="数量">
+                                <el-input-number v-model="activityParams.spawn_count" :min="1" :max="100"></el-input-number>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
+                    <el-row :gutter="20">
+                        <el-col :span="8">
+                            <el-form-item label="X坐标">
+                                <el-input-number v-model="activityParams.spawn_x" :min="0"></el-input-number>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="8">
+                            <el-form-item label="Y坐标">
+                                <el-input-number v-model="activityParams.spawn_y" :min="0"></el-input-number>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
+                </div>
+                <div v-else-if="activityForm.activityType === 'gift_rain'">
+                    <el-form-item label="掉落物品">
+                        <el-input v-model="activityParams.items_str" placeholder="物品名称，逗号分隔"></el-input>
+                    </el-form-item>
+                    <el-row :gutter="20">
+                        <el-col :span="12">
+                            <el-form-item label="每种数量">
+                                <el-input-number v-model="activityParams.count_per_item" :min="1" :max="100"></el-input-number>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12">
+                            <el-form-item label="目标地图">
+                                <el-input v-model="activityParams.maps_str" placeholder="地图ID，逗号分隔"></el-input>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
+                </div>
+                <div v-else-if="activityForm.activityType === 'merchant'">
+                    <el-row :gutter="20">
+                        <el-col :span="8">
+                            <el-form-item label="NPC名称">
+                                <el-input v-model="activityParams.npc_name" placeholder="NPC名称"></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="8">
+                            <el-form-item label="出现地图">
+                                <el-input v-model="activityParams.spawn_map" placeholder="地图ID"></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="8">
+                            <el-form-item label="收购倍率">
+                                <el-input-number v-model="activityParams.buy_rate" :min="1" :max="5" :step="0.1"></el-input-number>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
+                </div>
+
+                <!-- 等级限制 -->
+                <el-divider>参与限制</el-divider>
+                <el-row :gutter="20">
+                    <el-col :span="8">
+                        <el-form-item label="最低等级">
+                            <el-input-number v-model="activityForm.minLevel" :min="1" :max="999"></el-input-number>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-form-item label="最高等级">
+                            <el-input-number v-model="activityForm.maxLevel" :min="1" :max="999"></el-input-number>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-form-item label="仅VIP">
+                            <el-switch v-model="activityForm.vipOnly"></el-switch>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+            </el-form>
+            <template #footer>
+                <el-button @click="activityDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="submitActivity">保存</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- 立即发送对话框 -->
+        <el-dialog v-model="sendDialogVisible" title="立即发送公告" width="500px">
+            <el-form :model="sendForm" label-width="80px">
+                <el-form-item label="类型">
+                    <el-select v-model="sendForm.noticeType" style="width: 100%">
+                        <el-option label="全服广播" value="broadcast"></el-option>
+                        <el-option label="系统消息" value="system"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="内容">
+                    <el-input v-model="sendForm.content" type="textarea" :rows="3" placeholder="公告内容"></el-input>
+                </el-form-item>
+                <el-form-item label="颜色">
+                    <el-select v-model="sendForm.color" style="width: 150px">
+                        <el-option label="黄色" value="yellow"></el-option>
+                        <el-option label="红色" value="red"></el-option>
+                        <el-option label="绿色" value="green"></el-option>
+                    </el-select>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="sendDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="submitSendNotice">发送</el-button>
+            </template>
+        </el-dialog>
+    </div>
+
+    <script>
+    const { createApp, ref, reactive, onMounted, watch } = Vue;
+
+    const app = createApp({
+        setup() {
+            const API_BASE = '/api/admin';
+            const token = ref(localStorage.getItem('admin_token') || '');
+            const isLoggedIn = ref(!!token.value);
+            const userInfo = ref(JSON.parse(localStorage.getItem('admin_info') || '{}'));
+            const loading = ref(false);
+            const currentMenu = ref('dashboard');
+
+            // 登录表单
+            const loginForm = reactive({ username: '', password: '' });
+            const loginRules = {
+                username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+                password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+            };
+
+            // 数据
+            const dashboard = ref({});
+            const players = ref([]);
+            const playerSearch = ref('');
+            const playerPage = ref(1);
+            const playerTotal = ref(0);
+            const shopItems = ref([]);
+            const recharges = ref([]);
+            const rechargeSearch = ref('');
+            const rechargeDateRange = ref(null);
+            const rechargePage = ref(1);
+            const rechargeTotal = ref(0);
+            const giftcodes = ref([]);
+            const bans = ref([]);
+            const logs = ref([]);
+            const logPage = ref(1);
+            const logTotal = ref(0);
+            // 公告数据
+            const notices = ref([]);
+            const noticePage = ref(1);
+            const noticeTotal = ref(0);
+            const noticeTypeFilter = ref('');
+
+            // 对话框
+            const goldDialogVisible = ref(false);
+            const goldForm = reactive({ id: 0, charName: '', currentGold: 0, type: 'add', amount: 0 });
+            const banDialogVisible = ref(false);
+            const banForm = reactive({ id: 0, charName: '', banType: 'account', duration: -1, reason: '' });
+            // 公告对话框
+            const noticeDialogVisible = ref(false);
+            const noticeForm = reactive({ id: 0, title: '', content: '', noticeType: 'broadcast', priority: 0, color: 'yellow', repeatInterval: 300, scheduleCron: '', targetMap: '', startTime: null, endTime: null, isEnabled: true });
+            const sendDialogVisible = ref(false);
+            const sendForm = reactive({ content: '', noticeType: 'broadcast', color: 'yellow' });
+            const genCodeDialogVisible = ref(false);
+            const genCodeForm = reactive({ name: '', batchNo: '', gameGold: 100, count: 100, endTime: null });
+
+            // 活动管理
+            const activities = ref([]);
+            const activityPage = ref(1);
+            const activityTotal = ref(0);
+            const activityTypeFilter = ref('');
+            const activityStatusFilter = ref(null);
+            const activityKeyword = ref('');
+            const activityStats = ref({});
+            const runningActivities = ref([]);
+            const activityLogs = ref([]);
+            const currentExpRate = ref(1);
+            const currentDropRate = ref(1);
+            const activityDialogVisible = ref(false);
+            const activityForm = reactive({ 
+                id: 0, name: '', activityType: 'exp_boost', description: '', icon: 'default', color: '#FFD700',
+                scheduleType: 'daily', scheduleRule: '', startTime: null, durationMinutes: 30, 
+                weekDaysArray: ['1','2','3','4','5','6','7'], priority: 100,
+                minLevel: 1, maxLevel: 999, vipOnly: false, isEnabled: true
+            });
+            const activityParams = reactive({ 
+                exp_rate: 2, drop_rate: 1, 
+                boss_name: '', spawn_map: '3', spawn_x: 330, spawn_y: 330, spawn_count: 1,
+                items_str: '', count_per_item: 20, maps_str: '0,3',
+                npc_name: '', buy_rate: 1.5
+            });
+            const activityTypes = ref([
+                { value: 'exp_boost', label: '经验加成', icon: '⭐', color: '#00FF00' },
+                { value: 'drop_boost', label: '掉落加成', icon: '💎', color: '#00BFFF' },
+                { value: 'boss_spawn', label: 'BOSS刷新', icon: '👹', color: '#FF4500' },
+                { value: 'gift_rain', label: '天降豪礼', icon: '🎁', color: '#FF69B4' },
+                { value: 'merchant', label: '特殊商人', icon: '🛒', color: '#8B4513' },
+                { value: 'party', label: '派对活动', icon: '🎉', color: '#FF1493' }
+            ]);
+
+            // VIP地图管理
+            const vipMaps = ref([]);
+            const vipLevels = ref([
+                { level: 0, name: '普通玩家', minRecharge: 0, icon: '👤', color: '#FFFFFF', benefits: '' },
+                { level: 1, name: '贵族VIP', minRecharge: 30, icon: '⭐', color: '#FFD700', benefits: '贵族大厅进入权限' },
+                { level: 2, name: '黄金VIP', minRecharge: 100, icon: '🌟', color: '#FFA500', benefits: '黄金殿堂进入权限、每日礼包' },
+                { level: 3, name: '钻石VIP', minRecharge: 500, icon: '💎', color: '#00BFFF', benefits: '钻石圣殿进入权限、专属称号' },
+                { level: 4, name: '至尊VIP', minRecharge: 1000, icon: '👑', color: '#FF1493', benefits: '所有VIP权限、至尊称号' },
+                { level: 5, name: '神级VIP', minRecharge: 5000, icon: '🔱', color: '#9400D3', benefits: '神级特权、免费传送、专属神装' }
+            ]);
+            const vipMapDialogVisible = ref(false);
+            const vipMapForm = reactive({
+                id: 0, mapId: '', mapName: '', description: '',
+                minVipLevel: 1, minRecharge: 30, entryFee: 0, dailyLimit: -1, levelLimit: 35,
+                isRandomEntry: true, isFixedEntry: true,
+                randomXMin: 100, randomXMax: 200, randomYMin: 100, randomYMax: 200,
+                randomXRange: [100, 200], randomYRange: [100, 200],
+                fixedX: 150, fixedY: 150, isEnabled: true
+            });
+            const vipScriptDialogVisible = ref(false);
+            const vipMapScript = ref('');
+
+            // API请求
+            const api = axios.create({ baseURL: API_BASE });
+            api.interceptors.request.use(config => {
+                if (token.value) config.headers.Authorization = `Bearer ${token.value}`;
+                return config;
+            });
+            api.interceptors.response.use(res => {
+                if (res.data.code === -401) {
+                    isLoggedIn.value = false;
+                    localStorage.removeItem('admin_token');
+                }
+                return res.data;
+            });
+
+            // 登录
+            const handleLogin = async () => {
+                loading.value = true;
+                try {
+                    const res = await api.post('/auth/login', loginForm);
+                    if (res.code === 0) {
+                        token.value = res.data.token;
+                        userInfo.value = res.data.userInfo;
+                        localStorage.setItem('admin_token', res.data.token);
+                        localStorage.setItem('admin_info', JSON.stringify(res.data.userInfo));
+                        isLoggedIn.value = true;
+                        loadDashboard();
+                        ElementPlus.ElMessage.success('登录成功');
+                    } else {
+                        ElementPlus.ElMessage.error(res.msg);
+                    }
+                } catch (e) {
+                    ElementPlus.ElMessage.error('登录失败');
+                }
+                loading.value = false;
+            };
+
+            // 退出
+            const handleLogout = () => {
+                localStorage.removeItem('admin_token');
+                localStorage.removeItem('admin_info');
+                isLoggedIn.value = false;
+                token.value = '';
+            };
+
+            // 加载数据
+            const loadDashboard = async () => {
+                const res = await api.get('/stats/dashboard');
+                if (res.code === 0) dashboard.value = res.data;
+
+                // 加载图表
+                setTimeout(() => {
+                    loadTrendChart();
+                    loadLevelChart();
+                    loadJobChart();
+                }, 100);
+            };
+
+            const loadTrendChart = async () => {
+                const res = await api.get('/stats/trend');
+                if (res.code !== 0) return;
+                const chart = echarts.init(document.getElementById('trendChart'));
+                chart.setOption({
+                    tooltip: { trigger: 'axis' },
+                    legend: { data: ['新增账号', '新增角色', '充值金额'] },
+                    xAxis: { type: 'category', data: res.data.map(d => d.date) },
+                    yAxis: [{ type: 'value' }, { type: 'value' }],
+                    series: [
+                        { name: '新增账号', type: 'bar', data: res.data.map(d => d.newAccounts) },
+                        { name: '新增角色', type: 'bar', data: res.data.map(d => d.newCharacters) },
+                        { name: '充值金额', type: 'line', yAxisIndex: 1, data: res.data.map(d => d.rechargeAmount) }
+                    ]
+                });
+            };
+
+            const loadLevelChart = async () => {
+                const res = await api.get('/stats/level-distribution');
+                if (res.code !== 0) return;
+                const chart = echarts.init(document.getElementById('levelChart'));
+                chart.setOption({
+                    tooltip: { trigger: 'item' },
+                    series: [{
+                        type: 'pie', radius: ['40%', '70%'],
+                        data: res.data.map(d => ({ name: d.range, value: d.count }))
+                    }]
+                });
+            };
+
+            const loadJobChart = async () => {
+                const res = await api.get('/stats/job-distribution');
+                if (res.code !== 0) return;
+                const chart = echarts.init(document.getElementById('jobChart'));
+                chart.setOption({
+                    tooltip: { trigger: 'item' },
+                    series: [{
+                        type: 'pie', radius: '70%',
+                        data: res.data.map(d => ({ name: d.name, value: d.count }))
+                    }]
+                });
+            };
+
+            const searchPlayers = async () => {
+                const res = await api.get('/player/search', { params: { keyword: playerSearch.value, page: playerPage.value } });
+                if (res.code === 0) {
+                    players.value = res.data.items;
+                    playerTotal.value = res.data.total;
+                }
+            };
+
+            const handlePlayerPageChange = (page) => {
+                playerPage.value = page;
+                searchPlayers();
+            };
+
+            const loadShopItems = async () => {
+                const res = await api.get('/shop/items');
+                if (res.code === 0) shopItems.value = res.data.items;
+            };
+
+            const searchRecharges = async () => {
+                const params = { keyword: rechargeSearch.value, page: rechargePage.value };
+                if (rechargeDateRange.value) {
+                    params.startTime = rechargeDateRange.value[0];
+                    params.endTime = rechargeDateRange.value[1];
+                }
+                const res = await api.get('/shop/recharges', { params });
+                if (res.code === 0) {
+                    recharges.value = res.data.items;
+                    rechargeTotal.value = res.data.total;
+                }
+            };
+
+            const handleRechargePageChange = (page) => {
+                rechargePage.value = page;
+                searchRecharges();
+            };
+
+            const loadGiftcodes = async () => {
+                const res = await api.get('/shop/giftcodes');
+                if (res.code === 0) giftcodes.value = res.data.items;
+            };
+
+            const loadBans = async () => {
+                const res = await api.get('/player/bans');
+                if (res.code === 0) bans.value = res.data.items;
+            };
+
+            const loadLogs = async () => {
+                const res = await api.get('/auth/logs', { params: { page: logPage.value } });
+                if (res.code === 0) {
+                    logs.value = res.data.items;
+                    logTotal.value = res.data.total;
+                }
+            };
+
+            const handleLogPageChange = (page) => {
+                logPage.value = page;
+                loadLogs();
+            };
+
+            // 公告管理
+            const loadNotices = async () => {
+                const params = { page: noticePage.value };
+                if (noticeTypeFilter.value) params.type = noticeTypeFilter.value;
+                const res = await api.get('/notice/list', { params });
+                if (res.code === 0) {
+                    notices.value = res.data.items;
+                    noticeTotal.value = res.data.total;
+                }
+            };
+
+            const handleNoticePageChange = (page) => {
+                noticePage.value = page;
+                loadNotices();
+            };
+
+            const noticeTypeName = (type) => {
+                return { login: '登录公告', broadcast: '全服广播', scroll: '滚动公告', schedule: '定时公告', map: '地图公告' }[type] || type;
+            };
+
+            const noticeTypeTag = (type) => {
+                return { login: 'info', broadcast: 'warning', scroll: 'success', schedule: 'primary', map: '' }[type] || '';
+            };
+
+            const showAddNoticeDialog = () => {
+                Object.assign(noticeForm, { id: 0, title: '', content: '', noticeType: 'broadcast', priority: 0, color: 'yellow', repeatInterval: 300, scheduleCron: '', targetMap: '', startTime: null, endTime: null, isEnabled: true });
+                noticeDialogVisible.value = true;
+            };
+
+            const editNotice = async (row) => {
+                const res = await api.get(`/notice/${row.id}`);
+                if (res.code === 0) {
+                    Object.assign(noticeForm, res.data);
+                    noticeDialogVisible.value = true;
+                }
+            };
+
+            const submitNotice = async () => {
+                if (!noticeForm.title || !noticeForm.content) {
+                    ElementPlus.ElMessage.warning('请填写标题和内容');
+                    return;
+                }
+                const res = noticeForm.id 
+                    ? await api.put(`/notice/${noticeForm.id}`, noticeForm)
+                    : await api.post('/notice', noticeForm);
+                if (res.code === 0) {
+                    ElementPlus.ElMessage.success(noticeForm.id ? '更新成功' : '添加成功');
+                    noticeDialogVisible.value = false;
+                    loadNotices();
+                } else {
+                    ElementPlus.ElMessage.error(res.msg);
+                }
+            };
+
+            const toggleNotice = async (row) => {
+                const res = await api.post(`/notice/${row.id}/toggle`, { enabled: row.isEnabled });
+                if (res.code !== 0) {
+                    row.isEnabled = !row.isEnabled;
+                    ElementPlus.ElMessage.error(res.msg);
+                }
+            };
+
+            const deleteNotice = async (row) => {
+                try {
+                    await ElementPlus.ElMessageBox.confirm('确定删除此公告?', '提示', { type: 'warning' });
+                    const res = await api.delete(`/notice/${row.id}`);
+                    if (res.code === 0) {
+                        ElementPlus.ElMessage.success('删除成功');
+                        loadNotices();
+                    } else {
+                        ElementPlus.ElMessage.error(res.msg);
+                    }
+                } catch {}
+            };
+
+            const showSendDialog = () => {
+                sendForm.content = '';
+                sendForm.noticeType = 'broadcast';
+                sendForm.color = 'yellow';
+                sendDialogVisible.value = true;
+            };
+
+            const submitSendNotice = async () => {
+                if (!sendForm.content) {
+                    ElementPlus.ElMessage.warning('请输入内容');
+                    return;
+                }
+                const res = await api.post('/notice/send', sendForm);
+                if (res.code === 0) {
+                    ElementPlus.ElMessage.success('发送成功');
+                    sendDialogVisible.value = false;
+                } else {
+                    ElementPlus.ElMessage.error(res.msg);
+                }
+            };
+
+            // 对话框操作
+            const showGoldDialog = (row) => {
+                goldForm.id = row.id;
+                goldForm.charName = row.chrName;
+                goldForm.currentGold = row.gold;
+                goldForm.type = 'add';
+                goldForm.amount = 0;
+                goldDialogVisible.value = true;
+            };
+
+            const submitGoldChange = async () => {
+                const res = await api.post(`/player/${goldForm.id}/gold`, { type: goldForm.type, amount: goldForm.amount });
+                if (res.code === 0) {
+                    ElementPlus.ElMessage.success('修改成功');
+                    goldDialogVisible.value = false;
+                    searchPlayers();
+                } else {
+                    ElementPlus.ElMessage.error(res.msg);
+                }
+            };
+
+            const showBanDialog = (row) => {
+                banForm.id = row.id;
+                banForm.charName = row.chrName;
+                banForm.banType = 'account';
+                banForm.duration = -1;
+                banForm.reason = '';
+                banDialogVisible.value = true;
+            };
+
+            const submitBan = async () => {
+                const res = await api.post(`/player/${banForm.id}/ban`, banForm);
+                if (res.code === 0) {
+                    ElementPlus.ElMessage.success('封禁成功');
+                    banDialogVisible.value = false;
+                    loadBans();
+                } else {
+                    ElementPlus.ElMessage.error(res.msg);
+                }
+            };
+
+            const unbanPlayer = async (row) => {
+                const res = await api.post(`/player/unban/${row.id}`);
+                if (res.code === 0) {
+                    ElementPlus.ElMessage.success('解封成功');
+                    loadBans();
+                }
+            };
+
+            const showGenCodeDialog = () => {
+                genCodeForm.name = '';
+                genCodeForm.batchNo = '';
+                genCodeForm.gameGold = 100;
+                genCodeForm.count = 100;
+                genCodeForm.endTime = null;
+                genCodeDialogVisible.value = true;
+            };
+
+            const submitGenCode = async () => {
+                const res = await api.post('/shop/giftcodes/generate', genCodeForm);
+                if (res.code === 0) {
+                    ElementPlus.ElMessage.success(`成功生成${res.data.count}个礼包码`);
+                    genCodeDialogVisible.value = false;
+                    loadGiftcodes();
+                } else {
+                    ElementPlus.ElMessage.error(res.msg);
+                }
+            };
+
+            // 活动管理方法
+            const loadActivities = async () => {
+                const params = { page: activityPage.value, pageSize: 20 };
+                if (activityTypeFilter.value) params.activityType = activityTypeFilter.value;
+                if (activityStatusFilter.value !== null) params.isEnabled = activityStatusFilter.value;
+                if (activityKeyword.value) params.keyword = activityKeyword.value;
+                
+                const res = await api.get('/activity/list', { params });
+                if (res.success) {
+                    activities.value = res.data;
+                    activityTotal.value = res.total;
+                }
+            };
+
+            const loadActivityStatus = async () => {
+                const res = await api.get('/activity/status');
+                if (res.success) {
+                    activityStats.value = res.data.todayStats || {};
+                    runningActivities.value = res.data.runningActivities || [];
+                    currentExpRate.value = res.currentExpRate || 1;
+                    currentDropRate.value = res.currentDropRate || 1;
+                }
+            };
+
+            const loadActivityLogs = async () => {
+                const res = await api.get('/activity/logs', { params: { limit: 50 } });
+                if (res.success) {
+                    activityLogs.value = res.data;
+                }
+            };
+
+            const handleActivityPageChange = (page) => {
+                activityPage.value = page;
+                loadActivities();
+            };
+
+            const activityTypeName = (type) => {
+                const t = activityTypes.value.find(x => x.value === type);
+                return t ? t.label : type;
+            };
+
+            const scheduleTypeName = (type) => {
+                return { once: '一次性', daily: '每日', weekly: '每周', interval: '间隔', cron: 'Cron' }[type] || type;
+            };
+
+            const formatTimeRemaining = (endTime) => {
+                if (!endTime) return '-';
+                const end = new Date(endTime);
+                const now = new Date();
+                const diff = Math.max(0, end - now);
+                const minutes = Math.floor(diff / 60000);
+                const seconds = Math.floor((diff % 60000) / 1000);
+                return `${minutes}分${seconds}秒`;
+            };
+
+            const showAddActivityDialog = () => {
+                Object.assign(activityForm, { 
+                    id: 0, name: '', activityType: 'exp_boost', description: '', icon: 'default', color: '#FFD700',
+                    scheduleType: 'daily', scheduleRule: '', startTime: '20:00:00', durationMinutes: 60, 
+                    weekDaysArray: ['1','2','3','4','5','6','7'], priority: 100,
+                    minLevel: 1, maxLevel: 999, vipOnly: false, isEnabled: true
+                });
+                Object.assign(activityParams, { exp_rate: 2, drop_rate: 1, boss_name: '', spawn_map: '3', spawn_x: 330, spawn_y: 330, spawn_count: 1, items_str: '金条,祝福油', count_per_item: 20, maps_str: '0,3', npc_name: '神秘商人', buy_rate: 1.5 });
+                activityDialogVisible.value = true;
+            };
+
+            const editActivity = async (row) => {
+                const res = await api.get(`/activity/${row.id}`);
+                if (res.success) {
+                    const data = res.data;
+                    Object.assign(activityForm, data);
+                    activityForm.weekDaysArray = data.weekDays ? data.weekDays.split(',') : ['1','2','3','4','5','6','7'];
+                    
+                    // 解析参数
+                    try {
+                        const params = data.params ? JSON.parse(data.params) : {};
+                        Object.assign(activityParams, { 
+                            exp_rate: params.exp_rate || 2, 
+                            drop_rate: params.drop_rate || 1,
+                            boss_name: params.boss_name || '',
+                            spawn_map: params.spawn_map || '3',
+                            spawn_x: params.spawn_x || 330,
+                            spawn_y: params.spawn_y || 330,
+                            spawn_count: params.spawn_count || 1,
+                            items_str: Array.isArray(params.items) ? params.items.join(',') : '',
+                            count_per_item: params.count_per_item || 20,
+                            maps_str: Array.isArray(params.maps) ? params.maps.join(',') : '0,3',
+                            npc_name: params.npc_name || '',
+                            buy_rate: params.buy_rate || 1.5
+                        });
+                    } catch {}
+                    activityDialogVisible.value = true;
+                }
+            };
+
+            const submitActivity = async () => {
+                if (!activityForm.name) {
+                    ElementPlus.ElMessage.warning('请输入活动名称');
+                    return;
+                }
+                
+                // 构建参数JSON
+                let params = {};
+                if (activityForm.activityType === 'exp_boost' || activityForm.activityType === 'party') {
+                    params = { exp_rate: activityParams.exp_rate, drop_rate: activityParams.drop_rate };
+                } else if (activityForm.activityType === 'boss_spawn') {
+                    params = { boss_name: activityParams.boss_name, spawn_map: activityParams.spawn_map, spawn_x: activityParams.spawn_x, spawn_y: activityParams.spawn_y, spawn_count: activityParams.spawn_count };
+                } else if (activityForm.activityType === 'gift_rain') {
+                    params = { items: activityParams.items_str.split(',').map(s => s.trim()), count_per_item: activityParams.count_per_item, maps: activityParams.maps_str.split(',').map(s => s.trim()) };
+                } else if (activityForm.activityType === 'merchant') {
+                    params = { npc_name: activityParams.npc_name, spawn_map: activityParams.spawn_map, spawn_x: activityParams.spawn_x, spawn_y: activityParams.spawn_y, buy_rate: activityParams.buy_rate };
+                }
+
+                const data = {
+                    ...activityForm,
+                    weekDays: activityForm.weekDaysArray.join(','),
+                    params: JSON.stringify(params),
+                    scheduleRule: activityForm.scheduleType === 'interval' ? String(activityForm.scheduleRule) : activityForm.scheduleRule
+                };
+
+                const res = await api.post('/activity/save', data);
+                if (res.success) {
+                    ElementPlus.ElMessage.success(activityForm.id ? '更新成功' : '添加成功');
+                    activityDialogVisible.value = false;
+                    loadActivities();
+                    loadActivityStatus();
+                } else {
+                    ElementPlus.ElMessage.error(res.message);
+                }
+            };
+
+            const toggleActivity = async (row) => {
+                const res = await api.post(`/activity/${row.id}/toggle?enabled=${row.isEnabled}`);
+                if (!res.success) {
+                    row.isEnabled = !row.isEnabled;
+                    ElementPlus.ElMessage.error(res.message);
+                }
+            };
+
+            const startActivity = async (id) => {
+                const res = await api.post(`/activity/${id}/start`);
+                if (res.success) {
+                    ElementPlus.ElMessage.success('活动已启动');
+                    loadActivities();
+                    loadActivityStatus();
+                    loadActivityLogs();
+                } else {
+                    ElementPlus.ElMessage.error(res.message);
+                }
+            };
+
+            const stopActivity = async (id) => {
+                const res = await api.post(`/activity/${id}/stop`);
+                if (res.success) {
+                    ElementPlus.ElMessage.success('活动已停止');
+                    loadActivities();
+                    loadActivityStatus();
+                    loadActivityLogs();
+                } else {
+                    ElementPlus.ElMessage.error(res.message);
+                }
+            };
+
+            const deleteActivity = async (row) => {
+                try {
+                    await ElementPlus.ElMessageBox.confirm(`确定删除活动 "${row.name}"?`, '提示', { type: 'warning' });
+                    const res = await api.delete(`/activity/${row.id}`);
+                    if (res.success) {
+                        ElementPlus.ElMessage.success('删除成功');
+                        loadActivities();
+                    } else {
+                        ElementPlus.ElMessage.error(res.message);
+                    }
+                } catch {}
+            };
+
+            // VIP地图管理方法
+            const loadVipMaps = async () => {
+                const res = await api.get('/vipmap/list');
+                if (res.success) {
+                    vipMaps.value = res.data;
+                }
+            };
+
+            const showAddVipMapDialog = () => {
+                Object.assign(vipMapForm, {
+                    id: 0, mapId: '', mapName: '', description: '',
+                    minVipLevel: 1, minRecharge: 30, entryFee: 0, dailyLimit: -1, levelLimit: 35,
+                    isRandomEntry: true, isFixedEntry: true,
+                    randomXMin: 100, randomXMax: 200, randomYMin: 100, randomYMax: 200,
+                    randomXRange: [100, 200], randomYRange: [100, 200],
+                    fixedX: 150, fixedY: 150, isEnabled: true
+                });
+                vipMapDialogVisible.value = true;
+            };
+
+            const editVipMap = async (row) => {
+                const res = await api.get(`/vipmap/${row.id}`);
+                if (res.success) {
+                    Object.assign(vipMapForm, res.data);
+                    vipMapForm.randomXRange = [res.data.randomXMin, res.data.randomXMax];
+                    vipMapForm.randomYRange = [res.data.randomYMin, res.data.randomYMax];
+                    vipMapDialogVisible.value = true;
+                }
+            };
+
+            const submitVipMap = async () => {
+                if (!vipMapForm.mapId || !vipMapForm.mapName) {
+                    ElementPlus.ElMessage.warning('请填写地图ID和名称');
+                    return;
+                }
+                const res = await api.post('/vipmap/save', vipMapForm);
+                if (res.success) {
+                    ElementPlus.ElMessage.success(vipMapForm.id ? '更新成功' : '添加成功');
+                    vipMapDialogVisible.value = false;
+                    loadVipMaps();
+                } else {
+                    ElementPlus.ElMessage.error(res.message);
+                }
+            };
+
+            const deleteVipMap = async (row) => {
+                try {
+                    await ElementPlus.ElMessageBox.confirm(`确定删除VIP地图 "${row.mapName}"?`, '提示', { type: 'warning' });
+                    const res = await api.delete(`/vipmap/${row.id}`);
+                    if (res.success) {
+                        ElementPlus.ElMessage.success('删除成功');
+                        loadVipMaps();
+                    } else {
+                        ElementPlus.ElMessage.error(res.message);
+                    }
+                } catch {}
+            };
+
+            const showVipMapScript = async (row) => {
+                const res = await api.get(`/vipmap/${row.id}/script`);
+                if (res.success) {
+                    vipMapScript.value = res.data;
+                    vipScriptDialogVisible.value = true;
+                }
+            };
+
+            const copyVipScript = () => {
+                navigator.clipboard.writeText(vipMapScript.value);
+                ElementPlus.ElMessage.success('脚本已复制到剪贴板');
+            };
+
+            // 监听菜单切换
+            watch(currentMenu, (val) => {
+                if (val === 'dashboard') loadDashboard();
+                else if (val === 'players') searchPlayers();
+                else if (val === 'shop') loadShopItems();
+                else if (val === 'recharge') searchRecharges();
+                else if (val === 'giftcode') loadGiftcodes();
+                else if (val === 'ban') loadBans();
+                else if (val === 'notice') loadNotices();
+                else if (val === 'activity') { loadActivities(); loadActivityStatus(); loadActivityLogs(); }
+                else if (val === 'vipmap') loadVipMaps();
+                else if (val === 'logs') loadLogs();
+            });
+
+            onMounted(() => {
+                if (isLoggedIn.value) loadDashboard();
+            });
+
+            return {
+                isLoggedIn, userInfo, loading, currentMenu, loginForm, loginRules,
+                dashboard, players, playerSearch, playerPage, playerTotal,
+                shopItems, recharges, rechargeSearch, rechargeDateRange, rechargePage, rechargeTotal,
+                giftcodes, bans, logs, logPage, logTotal,
+                notices, noticePage, noticeTotal, noticeTypeFilter,
+                goldDialogVisible, goldForm, banDialogVisible, banForm, genCodeDialogVisible, genCodeForm,
+                noticeDialogVisible, noticeForm, sendDialogVisible, sendForm,
+                handleLogin, handleLogout, searchPlayers, handlePlayerPageChange,
+                searchRecharges, handleRechargePageChange, handleLogPageChange,
+                showGoldDialog, submitGoldChange, showBanDialog, submitBan, unbanPlayer,
+                showGenCodeDialog, submitGenCode, showAddItemDialog: () => {}, editShopItem: () => {}, deleteShopItem: () => {},
+                loadNotices, handleNoticePageChange, noticeTypeName, noticeTypeTag,
+                showAddNoticeDialog, editNotice, submitNotice, toggleNotice, deleteNotice,
+                showSendDialog, submitSendNotice,
+                // 活动管理
+                activities, activityPage, activityTotal, activityTypeFilter, activityStatusFilter, activityKeyword,
+                activityStats, runningActivities, activityLogs, currentExpRate, currentDropRate,
+                activityDialogVisible, activityForm, activityParams, activityTypes,
+                loadActivities, handleActivityPageChange, activityTypeName, scheduleTypeName, formatTimeRemaining,
+                showAddActivityDialog, editActivity, submitActivity, toggleActivity, startActivity, stopActivity, deleteActivity,
+                // VIP地图管理
+                vipMaps, vipLevels, vipMapDialogVisible, vipMapForm, vipScriptDialogVisible, vipMapScript,
+                loadVipMaps, showAddVipMapDialog, editVipMap, submitVipMap, deleteVipMap, showVipMapScript, copyVipScript
+            };
+        }
+    });
+
+    app.use(ElementPlus);
+    app.mount('#app');
+    </script>
+</body>
+</html>

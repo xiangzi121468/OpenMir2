@@ -1,4 +1,4 @@
-﻿using M2Server.Monster.Monsters;
+using M2Server.Monster.Monsters;
 using M2Server.Player;
 using OpenMir2;
 using OpenMir2.Common;
@@ -598,7 +598,34 @@ namespace M2Server.Castle
 
         public int WithDrawalGolds(IPlayerActor PlayObject, int nGold)
         {
-            throw new NotImplementedException();
+            int result = -1;
+            if (nGold <= 0)
+            {
+                result = -4;
+                return result;
+            }
+            if (MasterGuild == PlayObject.MyGuild && PlayObject.GuildRankNo == 1)
+            {
+                if (nGold <= TotalGold)
+                {
+                    if (PlayObject.Gold + nGold <= SystemShare.Config.HumanMaxGold)
+                    {
+                        TotalGold -= nGold;
+                        PlayObject.Gold += nGold;
+                        PlayObject.GoldChanged();
+                        result = 1;
+                    }
+                    else
+                    {
+                        result = -3; // 金币已满
+                    }
+                }
+                else
+                {
+                    result = -2; // 城堡金币不足
+                }
+            }
+            return result;
         }
 
         public int InPalaceGuildCount()
@@ -643,7 +670,24 @@ namespace M2Server.Castle
 
         public void GetCastle(IGuild Guild)
         {
-            throw new NotImplementedException();
+            const string sGetCastleMsg = "[{0} 已被 {1} 占领]";
+            IGuild OldGuild = MasterGuild;
+            MasterGuild = Guild;
+            OwnGuild = Guild?.GuildName ?? string.Empty;
+            ChangeDate = DateTime.Now;
+            SaveConfigFile();
+            if (OldGuild != null)
+            {
+                OldGuild.RefMemberName();
+            }
+            if (MasterGuild != null)
+            {
+                MasterGuild.RefMemberName();
+            }
+            string castleMessage = string.Format(sGetCastleMsg, sName, OwnGuild);
+            SystemShare.WorldEngine.SendBroadCastMsgExt(castleMessage, MsgType.System);
+            SystemShare.WorldEngine.SendServerGroupMsg(Messages.SS_204, M2Share.ServerIndex, castleMessage);
+            LogService.Info(castleMessage);
         }
 
         public short GetHomeX()
@@ -669,12 +713,37 @@ namespace M2Server.Castle
 
         public bool AddAttackerInfo(IGuild Guild)
         {
-            throw new NotImplementedException();
+            if (Guild == null || Guild == MasterGuild)
+            {
+                return false;
+            }
+            // 检查是否已在攻城列表中
+            for (int i = 0; i < AttackGuildList.Count; i++)
+            {
+                if (AttackGuildList[i] == Guild)
+                {
+                    return false; // 已经在攻城列表中
+                }
+            }
+            AttackGuildList.Add(Guild);
+            return true;
         }
 
         public bool CanGetCastle(IGuild guild)
         {
-            throw new NotImplementedException();
+            if (guild == null)
+            {
+                return false;
+            }
+            // 检查行会是否在攻城列表中
+            for (int i = 0; i < AttackGuildList.Count; i++)
+            {
+                if (AttackGuildList[i] == guild)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public bool CheckInPalace(int nX, int nY)
@@ -706,7 +775,8 @@ namespace M2Server.Castle
 
         public bool CheckInPalace(int nX, int nY, IPlayerActor targetObject)
         {
-            throw new NotImplementedException();
+            bool result = IsMasterGuild(targetObject.MyGuild);
+            return result ? result : CheckInPalace(nX, nY);
         }
 
         public string GetWarDate()
@@ -910,7 +980,34 @@ namespace M2Server.Castle
 
         public int ReceiptGolds(IPlayerActor PlayObject, int nGold)
         {
-            throw new NotImplementedException();
+            int result = -1;
+            if (nGold <= 0)
+            {
+                result = -4;
+                return result;
+            }
+            if (MasterGuild == PlayObject.MyGuild && PlayObject.GuildRankNo == 1 && nGold > 0)
+            {
+                if (nGold <= PlayObject.Gold)
+                {
+                    if (TotalGold + nGold <= SystemShare.Config.CastleGoldMax)
+                    {
+                        PlayObject.Gold -= nGold;
+                        TotalGold += nGold;
+                        PlayObject.GoldChanged();
+                        result = 1;
+                    }
+                    else
+                    {
+                        result = -3; // 城堡金库已满
+                    }
+                }
+                else
+                {
+                    result = -2; // 金币不足
+                }
+            }
+            return result;
         }
 
         /// <summary>
@@ -1039,22 +1136,57 @@ namespace M2Server.Castle
 
         public bool IsAttackAllyGuild(IGuild Guild)
         {
-            throw new NotImplementedException();
+            if (!UnderWar || Guild == null)
+            {
+                return false;
+            }
+            // 检查是否为攻城方行会的联盟
+            for (int i = 0; i < AttackGuildList.Count; i++)
+            {
+                IGuild attackGuild = AttackGuildList[i];
+                if (attackGuild != MasterGuild && attackGuild.IsAllyGuild(Guild))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public bool IsAttackGuild(IGuild Guild)
         {
-            throw new NotImplementedException();
+            if (!UnderWar || Guild == null)
+            {
+                return false;
+            }
+            // 检查是否为攻城方行会
+            for (int i = 0; i < AttackGuildList.Count; i++)
+            {
+                if (AttackGuildList[i] != MasterGuild && AttackGuildList[i] == Guild)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public bool IsDefenseAllyGuild(IGuild guild)
         {
-            throw new NotImplementedException();
+            if (!UnderWar || guild == null)
+            {
+                return false;
+            }
+            // 检查是否为守城方行会的联盟
+            return MasterGuild != null && MasterGuild.IsAllyGuild(guild);
         }
 
         public bool IsDefenseGuild(IGuild guild)
         {
-            throw new NotImplementedException();
+            if (!UnderWar || guild == null)
+            {
+                return false;
+            }
+            // 检查是否为守城方行会
+            return guild == MasterGuild;
         }
     }
 }

@@ -82,7 +82,7 @@ namespace DBSrv.Storage.MySQL
         private void SaveRecord(StorageContext context, int playerId, CharacterData hd)
         {
             StringBuilder strSql = new StringBuilder();
-            strSql.AppendLine("UPDATE characters SET ServerIndex = @ServerIndex, LoginID = @LoginID,MapName = @MapName, CX = @CX, CY = @CY, Level = @Level, Dir = @Dir, Hair = @Hair, Sex = @Sex, Job = Job, Gold = @Gold, ");
+            strSql.AppendLine("UPDATE characters SET ServerIndex = @ServerIndex, LoginID = @LoginID,MapName = @MapName, CX = @CX, CY = @CY, Level = @Level, Dir = @Dir, Hair = @Hair, Sex = @Sex, Job = Job, Gold = @Gold, GameGold = @GameGold, ");
             strSql.AppendLine("GamePoint = @GamePoint, HomeMap = @HomeMap, HomeX = @HomeX, HomeY = @HomeY, PkPoint = @PkPoint, ReLevel = @ReLevel, AttatckMode = @AttatckMode, FightZoneDieCount = @FightZoneDieCount, BodyLuck = @BodyLuck, IncHealth = @IncHealth, IncSpell = @IncSpell,");
             strSql.AppendLine("IncHealing = @IncHealing, CreditPoint = @CreditPoint, BonusPoint =@BonusPoint, HungerStatus =@HungerStatus, PayMentPoint = @PayMentPoint, LockLogon = @LockLogon, MarryCount = @MarryCount, AllowGroupReCall = @AllowGroupReCall, ");
             strSql.AppendLine("GroupRcallTime = @GroupRcallTime, AllowGuildReCall = @AllowGuildReCall, IsMaster = @IsMaster, MasterName = @MasterName, DearName = @DearName, StoragePwd = @StoragePwd, Deleted = @Deleted,LASTUPDATE = now() WHERE ID = @ID;");
@@ -100,6 +100,7 @@ namespace DBSrv.Storage.MySQL
             command.Parameters.AddWithValue("@Sex", hd.Sex);
             command.Parameters.AddWithValue("@Job", hd.Job);
             command.Parameters.AddWithValue("@Gold", hd.Gold);
+            command.Parameters.AddWithValue("@GameGold", hd.GameGold);
             command.Parameters.AddWithValue("@GamePoint", hd.GamePoint);
             command.Parameters.AddWithValue("@HomeMap", hd.HomeMap);
             command.Parameters.AddWithValue("@HomeX", hd.HomeX);

@@ -11,7 +11,7 @@ namespace GameSrv.Word.Threads
 
         public override void Initialize(CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            LogService.Info("事件管理处理器初始化...");
         }
 
         protected override void Startup(CancellationToken stoppingToken)

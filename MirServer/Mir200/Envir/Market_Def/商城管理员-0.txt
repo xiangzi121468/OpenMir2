@@ -1,0 +1,411 @@
+; ========================================
+; 商城管理员 NPC 脚本
+; 位置: 比奇省 330,330
+; ========================================
+
+[@main]
+#IF
+#ACT
+#SAY
+<$USERNAME> 您好，欢迎光临元宝商城！\
+\
+当前元宝: <$GAMEGOLD>  VIP等级: <$VIPLEVEL>\
+\
+<热销推荐/@hot>  <新品上架/@new>  <全部商品/@all>\
+<充值中心/@recharge>  <礼包兑换/@giftcode>  <VIP特权/@vip>\
+\
+<关闭/@exit>
+
+; ========================================
+; 热销商品
+; ========================================
+[@hot]
+#IF
+#ACT
+#SAY
+【热销推荐】\
+\
+1. 金创药大礼包 - 50元宝 (原价80) <购买/@buy_1>\
+2. 魔法药大礼包 - 50元宝 (原价80) <购买/@buy_2>\
+3. 超级金创药x50 - 100元宝 <购买/@buy_3>\
+4. 裁决之杖 - 5000元宝 <购买/@buy_4>\
+5. 烈焰龙甲 - 8000元宝 (原价10000) <购买/@buy_7>\
+\
+<返回/@main>
+
+[@buy_1]
+#IF
+CHECKGAMEGOLD > 49
+#ACT
+GAMEGOLD - 50
+GIVE 金创药(大量) 100
+SENDMSG 5 恭喜购买成功，获得金创药x100！
+#ELSESAY
+元宝不足，需要50元宝！\
+\
+<返回/@main>
+
+[@buy_2]
+#IF
+CHECKGAMEGOLD > 49
+#ACT
+GAMEGOLD - 50
+GIVE 魔法药(大量) 100
+SENDMSG 5 恭喜购买成功，获得魔法药x100！
+#ELSESAY
+元宝不足，需要50元宝！\
+\
+<返回/@main>
+
+[@buy_3]
+#IF
+CHECKGAMEGOLD > 99
+#ACT
+GAMEGOLD - 100
+GIVE 超级金创药 50
+SENDMSG 5 恭喜购买成功，获得超级金创药x50！
+#ELSESAY
+元宝不足，需要100元宝！\
+\
+<返回/@main>
+
+[@buy_4]
+#IF
+CHECKGAMEGOLD > 4999
+#ACT
+GAMEGOLD - 5000
+GIVE 裁决之杖 1
+SENDMSG 5 恭喜购买成功，获得裁决之杖！
+#ELSESAY
+元宝不足，需要5000元宝！\
+\
+<返回/@main>
+
+[@buy_7]
+#IF
+CHECKGAMEGOLD > 7999
+#ACT
+GAMEGOLD - 8000
+GIVE 烈焰龙甲(男) 1
+SENDMSG 5 恭喜购买成功，获得烈焰龙甲！
+#ELSESAY
+元宝不足，需要8000元宝！\
+\
+<返回/@main>
+
+; ========================================
+; 新品上架
+; ========================================
+[@new]
+#IF
+#ACT
+#SAY
+【新品上架】\
+\
+1. 龙皇神甲 - 12000元宝 <购买/@buy_new1>\
+2. 双倍经验卡(24小时) - 200元宝 <购买/@buy_new2>\
+3. 技能书礼包 - 1000元宝 <购买/@buy_new3>\
+\
+<返回/@main>
+
+[@buy_new1]
+#IF
+CHECKGAMEGOLD > 11999
+#ACT
+GAMEGOLD - 12000
+GIVE 龙皇神甲(男) 1
+SENDMSG 5 恭喜购买成功，获得龙皇神甲！
+#ELSESAY
+元宝不足，需要12000元宝！\
+\
+<返回/@main>
+
+[@buy_new2]
+#IF
+CHECKGAMEGOLD > 199
+#ACT
+GAMEGOLD - 200
+; 设置24小时双倍经验
+SENDMSG 5 恭喜购买成功，双倍经验已生效24小时！
+#ELSESAY
+元宝不足，需要200元宝！\
+\
+<返回/@main>
+
+[@buy_new3]
+#IF
+CHECKGAMEGOLD > 999
+#ACT
+GAMEGOLD - 1000
+; 随机给技能书
+SENDMSG 5 恭喜购买成功，获得随机技能书！
+#ELSESAY
+元宝不足，需要1000元宝！\
+\
+<返回/@main>
+
+; ========================================
+; 全部商品
+; ========================================
+[@all]
+#IF
+#ACT
+#SAY
+【商品分类】\
+\
+<武器装备/@cat_weapon>  <消耗道具/@cat_consume>\
+<材料宝石/@cat_material>  <特殊物品/@cat_special>\
+\
+<返回/@main>
+
+[@cat_weapon]
+#IF
+#ACT
+#SAY
+【武器装备】\
+\
+1. 裁决之杖 - 5000元宝 <购买/@buy_4>\
+2. 龙纹剑 - 4500元宝 <购买/@buy_w2>\
+3. 骨玉权杖 - 4800元宝 <购买/@buy_w3>\
+4. 烈焰龙甲 - 8000元宝 <购买/@buy_7>\
+5. 龙皇神甲 - 12000元宝 <购买/@buy_new1>\
+\
+<返回/@all>  <返回首页/@main>
+
+[@buy_w2]
+#IF
+CHECKGAMEGOLD > 4499
+#ACT
+GAMEGOLD - 4500
+GIVE 龙纹剑 1
+SENDMSG 5 恭喜购买成功，获得龙纹剑！
+#ELSESAY
+元宝不足！\
+\
+<返回/@main>
+
+[@buy_w3]
+#IF
+CHECKGAMEGOLD > 4799
+#ACT
+GAMEGOLD - 4800
+GIVE 骨玉权杖 1
+SENDMSG 5 恭喜购买成功，获得骨玉权杖！
+#ELSESAY
+元宝不足！\
+\
+<返回/@main>
+
+[@cat_consume]
+#IF
+#ACT
+#SAY
+【消耗道具】\
+\
+1. 金创药大礼包x100 - 50元宝 <购买/@buy_1>\
+2. 魔法药大礼包x100 - 50元宝 <购买/@buy_2>\
+3. 随机传送卷x10 - 30元宝 <购买/@buy_c1>\
+4. 回城卷x20 - 20元宝 <购买/@buy_c2>\
+5. 祝福油x5 - 200元宝 <购买/@buy_c3>\
+\
+<返回/@all>  <返回首页/@main>
+
+[@buy_c1]
+#IF
+CHECKGAMEGOLD > 29
+#ACT
+GAMEGOLD - 30
+GIVE 随机传送卷 10
+SENDMSG 5 恭喜购买成功！
+#ELSESAY
+元宝不足！\
+\
+<返回/@main>
+
+[@buy_c2]
+#IF
+CHECKGAMEGOLD > 19
+#ACT
+GAMEGOLD - 20
+GIVE 回城卷 20
+SENDMSG 5 恭喜购买成功！
+#ELSESAY
+元宝不足！\
+\
+<返回/@main>
+
+[@buy_c3]
+#IF
+CHECKGAMEGOLD > 199
+#ACT
+GAMEGOLD - 200
+GIVE 祝福油 5
+SENDMSG 5 恭喜购买成功！
+#ELSESAY
+元宝不足！\
+\
+<返回/@main>
+
+[@cat_material]
+#IF
+#ACT
+#SAY
+【材料宝石】\
+\
+1. 高纯度黑铁矿x10 - 100元宝 <购买/@buy_m1>\
+2. 金刚石x5 - 300元宝 <购买/@buy_m2>\
+3. 记忆项链 - 500元宝 <购买/@buy_m3>\
+\
+<返回/@all>  <返回首页/@main>
+
+[@buy_m1]
+#IF
+CHECKGAMEGOLD > 99
+#ACT
+GAMEGOLD - 100
+GIVE 黑铁矿石 10
+SENDMSG 5 恭喜购买成功！
+#ELSESAY
+元宝不足！\
+\
+<返回/@main>
+
+[@buy_m2]
+#IF
+CHECKGAMEGOLD > 299
+#ACT
+GAMEGOLD - 300
+GIVE 金刚石 5
+SENDMSG 5 恭喜购买成功！
+#ELSESAY
+元宝不足！\
+\
+<返回/@main>
+
+[@buy_m3]
+#IF
+CHECKGAMEGOLD > 499
+#ACT
+GAMEGOLD - 500
+GIVE 记忆项链 1
+SENDMSG 5 恭喜购买成功！
+#ELSESAY
+元宝不足！\
+\
+<返回/@main>
+
+[@cat_special]
+#IF
+#ACT
+#SAY
+【特殊物品】\
+\
+1. 双倍经验卡(24小时) - 200元宝 <购买/@buy_new2>\
+2. 技能书礼包 - 1000元宝 <购买/@buy_new3>\
+3. 仓库扩展+10格 - 500元宝 <购买/@buy_s1>\
+\
+<返回/@all>  <返回首页/@main>
+
+[@buy_s1]
+#IF
+CHECKGAMEGOLD > 499
+#ACT
+GAMEGOLD - 500
+; 扩展仓库
+SENDMSG 5 恭喜购买成功，仓库空间+10！
+#ELSESAY
+元宝不足！\
+\
+<返回/@main>
+
+; ========================================
+; 充值中心
+; ========================================
+[@recharge]
+#IF
+#ACT
+#SAY
+【充值中心】\
+\
+充值比例: 1元 = 10元宝\
+首充额外赠送元宝！\
+\
+6元 = 60元宝 (首充+6)\
+30元 = 300元宝 (首充+50) ★推荐\
+98元 = 980元宝 (首充+200)\
+198元 = 1980元宝 (首充+500)\
+328元 = 3280元宝 (首充+1000) ★超值\
+648元 = 6480元宝 (首充+2500)\
+\
+请使用游戏外充值页面进行充值\
+充值完成后元宝自动到账\
+\
+<返回/@main>
+
+; ========================================
+; 礼包兑换
+; ========================================
+[@giftcode]
+#IF
+#ACT
+#SAY
+【礼包兑换】\
+\
+请输入您的礼包码：\
+\
+<输入礼包码/@inputcode>\
+\
+新手礼包码: WELCOME2024\
+(每个账号限用一次)\
+\
+<返回/@main>
+
+[@inputcode]
+#IF
+#ACT
+QUERYVALUE 请输入礼包码 CODE
+
+[@queryvalue_CODE]
+#IF
+#ACT
+; 调用礼包兑换逻辑
+; REDEEMCODE <$STR(CODE)>
+#SAY
+礼包码兑换功能开发中...\
+\
+<返回/@main>
+
+; ========================================
+; VIP特权
+; ========================================
+[@vip]
+#IF
+#ACT
+#SAY
+【VIP特权】\
+\
+您当前的VIP等级: <$VIPLEVEL>\
+累计充值: <$TOTALRECHARGE> 元宝\
+\
+VIP等级 | 充值要求 | 经验加成 | 商城折扣\
+VIP1 | 100元宝 | +5% | 98折\
+VIP2 | 500元宝 | +10% | 95折\
+VIP3 | 1000元宝 | +15% | 92折\
+VIP4 | 3000元宝 | +20% | 90折\
+VIP5 | 5000元宝 | +25% | 88折\
+VIP6 | 10000元宝 | +30% | 85折\
+VIP7 | 20000元宝 | +35% | 82折\
+VIP8 | 50000元宝 | +40% | 80折\
+VIP9 | 100000元宝 | +50% | 75折\
+VIP10 | 200000元宝 | +60% | 70折\
+\
+<领取每日礼包/@vipdaily>  <返回/@main>
+
+[@vipdaily]
+#IF
+; 检查VIP等级
+#ACT
+#SAY
+VIP每日礼包领取功能开发中...\
+\
+<返回/@main>

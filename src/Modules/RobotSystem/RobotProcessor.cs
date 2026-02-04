@@ -174,102 +174,91 @@ namespace RobotSystem
 
         private static IRobotPlayer CreateRobotPlayObject(RoBotLogon ai)
         {
-            return null;
-            //var envirnoment = SystemShare.MapMgr.FindMap(ai.sMapName);
-            //if (envirnoment == null)
-            //{
-            //    return null;
-            //}
-            //var cert = new RobotPlayer();
-            //cert.Envir = envirnoment;
-            //cert.MapName = ai.sMapName;
-            //cert.CurrX = ai.nX;
-            //cert.CurrY = ai.nY;
-            //cert.Dir = (byte)M2Share.RandomNumber.Random(8);
-            //cert.ChrName = ai.sChrName;
-            //cert.WAbil = cert.Abil;
-            //if (M2Share.RandomNumber.Random(100) < cert.CoolEyeCode)
-            //{
-            //    cert.CoolEye = true;
-            //}
-            ////Cert.m_sIPaddr = GetIPAddr;// Mac问题
-            ////Cert.m_sIPLocal = GetIPLocal(Cert.m_sIPaddr);
-            //cert.ConfigFileName = ai.sConfigFileName;
-            //cert.FilePath = ai.sFilePath;
-            //cert.ConfigListFileName = ai.sConfigListFileName;
-            //cert.HeroConfigListFileName = ai.sHeroConfigListFileName;// 英雄配置列表目录
-            //cert.Initialize();
-            //cert.RecalcLevelAbilitys();
-            //cert.RecalcAbilitys();
-            //cert.Abil.HP = cert.Abil.MaxHP;
-            //cert.Abil.MP = cert.Abil.MaxMP;
-            //if (cert.AddtoMapSuccess)
-            //{
-            //    bool mapSuccess = false;
-            //    int n20;
-            //    if (cert.Envir.Width < 50)
-            //    {
-            //        n20 = 2;
-            //    }
-            //    else
-            //    {
-            //        n20 = 3;
-            //    }
-            //    int n24;
-            //    if (cert.Envir.Height < 250)
-            //    {
-            //        if (cert.Envir.Height < 30)
-            //        {
-            //            n24 = 2;
-            //        }
-            //        else
-            //        {
-            //            n24 = 20;
-            //        }
-            //    }
-            //    else
-            //    {
-            //        n24 = 50;
-            //    }
-            //    var n1C = 0;
-            //    while (true)
-            //    {
-            //        if (!cert.Envir.CanWalk(cert.CurrX, cert.CurrY, false))
-            //        {
-            //            if ((cert.Envir.Width - n24 - 1) > cert.CurrX)
-            //            {
-            //                cert.CurrX += (short)n20;
-            //            }
-            //            else
-            //            {
-            //                cert.CurrX = (byte)(M2Share.RandomNumber.Random(cert.Envir.Width / 2) + n24);
-            //                if (cert.Envir.Height - n24 - 1 > cert.CurrY)
-            //                {
-            //                    cert.CurrY += (short)n20;
-            //                }
-            //                else
-            //                {
-            //                    cert.CurrY = (byte)(M2Share.RandomNumber.Random(cert.Envir.Height / 2) + n24);
-            //                }
-            //            }
-            //        }
-            //        else
-            //        {
-            //            mapSuccess = cert.Envir.AddMapObject(cert.CurrX, cert.CurrY, cert.CellType, cert.ActorId, cert);
-            //            break;
-            //        }
-            //        n1C++;
-            //        if (n1C >= 31)
-            //        {
-            //            break;
-            //        }
-            //    }
-            //    if (!mapSuccess)
-            //    {
-            //        cert = null;
-            //    }
-            //}
-            //return cert;
+            try
+            {
+                var envirnoment = SystemShare.MapMgr.FindMap(ai.sMapName);
+                if (envirnoment == null)
+                {
+                    LogService.Warn($"机器人创建失败: 地图 {ai.sMapName} 不存在");
+                    return null;
+                }
+
+                var robot = new Services.RobotPlayer();
+                robot.Envir = envirnoment;
+                robot.MapName = ai.sMapName;
+                robot.CurrX = ai.nX;
+                robot.CurrY = ai.nY;
+                robot.Dir = (byte)SystemShare.RandomNumber.Random(8);
+                robot.ChrName = ai.sChrName;
+                robot.WAbil = robot.Abil;
+                
+                if (SystemShare.RandomNumber.Random(100) < robot.CoolEyeCode)
+                {
+                    robot.CoolEye = true;
+                }
+
+                robot.ConfigFileName = ai.sConfigFileName;
+                robot.FilePath = ai.sFilePath;
+                robot.ConfigListFileName = ai.sConfigListFileName;
+                robot.HeroConfigListFileName = ai.sHeroConfigListFileName;
+                robot.Initialize();
+                robot.RecalcLevelAbilitys();
+                robot.RecalcAbilitys();
+                robot.Abil.HP = robot.Abil.MaxHP;
+                robot.Abil.MP = robot.Abil.MaxMP;
+
+                if (robot.AddtoMapSuccess)
+                {
+                    bool mapSuccess = false;
+                    int stepSize = envirnoment.Width < 50 ? 2 : 3;
+                    int margin = envirnoment.Height < 250 ? (envirnoment.Height < 30 ? 2 : 20) : 50;
+                    
+                    int tryCount = 0;
+                    while (tryCount < 31)
+                    {
+                        if (!envirnoment.CanWalk(robot.CurrX, robot.CurrY, false))
+                        {
+                            // 尝试找一个可以行走的位置
+                            if ((envirnoment.Width - margin - 1) > robot.CurrX)
+                            {
+                                robot.CurrX += (short)stepSize;
+                            }
+                            else
+                            {
+                                robot.CurrX = (short)(SystemShare.RandomNumber.Random(envirnoment.Width / 2) + margin);
+                                if (envirnoment.Height - margin - 1 > robot.CurrY)
+                                {
+                                    robot.CurrY += (short)stepSize;
+                                }
+                                else
+                                {
+                                    robot.CurrY = (short)(SystemShare.RandomNumber.Random(envirnoment.Height / 2) + margin);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            mapSuccess = envirnoment.AddMapObject(robot.CurrX, robot.CurrY, robot.CellType, robot.ActorId, robot);
+                            break;
+                        }
+                        tryCount++;
+                    }
+
+                    if (!mapSuccess)
+                    {
+                        LogService.Warn($"机器人 {ai.sChrName} 无法添加到地图 {ai.sMapName}");
+                        return null;
+                    }
+                }
+
+                LogService.Info($"机器人 {ai.sChrName} 创建成功, 地图: {ai.sMapName}({ai.nX},{ai.nY})");
+                return robot;
+            }
+            catch (Exception ex)
+            {
+                LogService.Error($"创建机器人失败: {ex.Message}");
+                return null;
+            }
         }
     }
 }
