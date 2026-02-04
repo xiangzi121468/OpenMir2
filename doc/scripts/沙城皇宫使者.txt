@@ -1,0 +1,307 @@
+; ============================================
+; 沙城皇宫使者 NPC脚本
+; 位置: 沙巴克皇宫 (D716)
+; 功能: 攻城战报名、城堡信息查询、税收领取
+; ============================================
+
+[@main]
+{
+<$CASTLEWAR_ISACTIVE>
+#IF
+EQUAL <$CASTLEWAR_ISACTIVE> 1
+#ACT
+GOTO @war_active
+#ELSEACT
+GOTO @war_normal
+}
+
+[@war_normal]
+#SAY
+╔════════════════════════════════════╗
+║        沙巴克皇宫使者              ║
+╠════════════════════════════════════╣
+║                                    ║
+║  欢迎来到沙巴克皇宫！              ║
+║                                    ║
+║  当前城主: <$CASTLENAME>           ║
+║  占领行会: [<$CASTLEGUILDNAME>]    ║
+║  城主名称: <$CASTLEOWNER>          ║
+║                                    ║
+╚════════════════════════════════════╝
+
+<查看城堡信息/@castleinfo>
+<报名攻城战/@apply>
+<查看报名行会/@viewapply>
+<攻城战历史/@history>
+{
+#IF
+CHECKGUILDMASTER
+CHECKGUILD <$CASTLEGUILDNAME>
+#SAY
+<领取税收/@collecttax>   <城堡管理/@manage>
+}
+<离开/@exit>
+
+[@war_active]
+#SAY
+╔════════════════════════════════════╗
+║     ⚔️ 攻城战进行中 ⚔️            ║
+╠════════════════════════════════════╣
+║                                    ║
+║  沙巴克正在遭受攻击！              ║
+║                                    ║
+║  守城方: [<$CASTLEGUILDNAME>]      ║
+║  剩余时间: <$WARREMAINTIME> 分钟   ║
+║  城门状态: <$GATEHP>/<$GATEMAXHP>  ║
+║                                    ║
+╚════════════════════════════════════╝
+
+<查看实时战况/@warstatus>
+<离开/@exit>
+
+[@castleinfo]
+#SAY
+╔════════════════════════════════════╗
+║          沙巴克城堡信息            ║
+╠════════════════════════════════════╣
+║  城堡名称: 沙巴克                  ║
+║  城堡地图: D715                    ║
+║  皇宫地图: D716                    ║
+║                                    ║
+║  占领行会: [<$CASTLEGUILDNAME>]    ║
+║  城主: <$CASTLEOWNER>              ║
+║  占领时间: <$CASTLEOCCUPYTIME>     ║
+║                                    ║
+║  当前税率: <$CASTLETAXRATE>%       ║
+║  累计税收: <$CASTLETOTALTAX> 金币  ║
+║                                    ║
+║  城门HP: <$GATEHP>/<$GATEMAXHP>    ║
+║  城防等级: <$CASTLEDEFENSELEVEL>   ║
+║                                    ║
+║  下次攻城: <$NEXTWARTIME>          ║
+╚════════════════════════════════════╝
+
+<返回/@main>
+
+[@apply]
+#IF
+CHECKGUILDMASTER
+#ELSEACT
+MESSAGEBOX 只有行会会长才能报名攻城战！
+GOTO @main
+
+#IF
+CHECKGUILDMASTER
+#SAY
+╔════════════════════════════════════╗
+║          报名攻城战                ║
+╠════════════════════════════════════╣
+║                                    ║
+║  您的行会: [<$GUILDNAME>]          ║
+║  行会人数: <$GUILDMEMBERCOUNT>     ║
+║                                    ║
+║  报名费用: 1,000,000 金币          ║
+║  最低人数: 10人                    ║
+║  报名截止: 攻城前24小时            ║
+║                                    ║
+║  下次攻城: <$NEXTWARTIME>          ║
+║                                    ║
+╚════════════════════════════════════╝
+
+<确认报名/@confirmapply>   <返回/@main>
+
+[@confirmapply]
+#IF
+CHECKGOLD 1000000
+CHECKGUILDMEMBERCOUNT > 9
+#ACT
+TAKE 金币 1000000
+APPLYCASTE 沙巴克
+SENDMSG 0 [<$GUILDNAME>] 成功报名沙巴克攻城战！
+#SAY
+报名成功！
+
+您的行会 [<$GUILDNAME>] 已成功报名沙巴克攻城战。
+
+攻城时间: <$NEXTWARTIME>
+
+请做好准备，祝您旗开得胜！
+
+<返回/@main>
+#ELSEACT
+MESSAGEBOX 报名失败！请确保：\n1. 金币不少于1,000,000\n2. 行会人数不少于10人
+GOTO @main
+
+[@viewapply]
+#SAY
+╔════════════════════════════════════╗
+║        已报名攻城行会              ║
+╠════════════════════════════════════╣
+║  攻城日期: <$NEXTWARTIME>          ║
+║                                    ║
+<$CASTLEAPPLYLIST>
+║                                    ║
+╚════════════════════════════════════╝
+
+<返回/@main>
+
+[@history]
+#SAY
+╔════════════════════════════════════╗
+║        沙巴克攻城战历史            ║
+╠════════════════════════════════════╣
+<$CASTLEWARHISTORY>
+╚════════════════════════════════════╝
+
+<返回/@main>
+
+[@warstatus]
+#SAY
+╔════════════════════════════════════╗
+║        实时战况                    ║
+╠════════════════════════════════════╣
+║                                    ║
+║  守城方: [<$CASTLEGUILDNAME>]      ║
+║  当前占领: [<$CURRENTOCCUPIER>]    ║
+║                                    ║
+║  城门HP: <$GATEHP>/<$GATEMAXHP>    ║
+║  剩余时间: <$WARREMAINTIME> 分钟   ║
+║  总击杀数: <$WARTOTALKILLS>        ║
+║                                    ║
+╚════════════════════════════════════╝
+
+<刷新/@warstatus>   <返回/@main>
+
+[@collecttax]
+#IF
+CHECKGUILDMASTER
+CHECKGUILD <$CASTLEGUILDNAME>
+#ACT
+COLLECTCASTLETAX
+#SAY
+税收已领取！
+
+本次领取: <$COLLECTEDTAX> 金币
+
+税收已存入您的背包。
+
+<返回/@main>
+#ELSEACT
+MESSAGEBOX 只有城主行会会长才能领取税收！
+GOTO @main
+
+[@manage]
+#IF
+CHECKGUILDMASTER
+CHECKGUILD <$CASTLEGUILDNAME>
+#SAY
+╔════════════════════════════════════╗
+║          城堡管理                  ║
+╠════════════════════════════════════╣
+
+<调整税率/@settax>
+<修复城门/@repairgate>
+<雇佣守卫/@hireguard>
+<城堡升级/@upgrade>
+
+<返回/@main>
+#ELSEACT
+MESSAGEBOX 只有城主行会会长才能管理城堡！
+GOTO @main
+
+[@settax]
+#SAY
+当前税率: <$CASTLETAXRATE>%
+
+请选择新的税率:
+
+<5%/@tax5>  <10%/@tax10>  <15%/@tax15>  <20%/@tax20>
+<25%/@tax25>  <30%/@tax30>
+
+<返回/@manage>
+
+[@tax5]
+#ACT
+SETCASTLETAX 5
+SENDMSG 0 沙巴克城税率已调整为5%
+#SAY
+税率已调整为 5%
+
+<返回/@manage>
+
+[@tax10]
+#ACT
+SETCASTLETAX 10
+SENDMSG 0 沙巴克城税率已调整为10%
+#SAY
+税率已调整为 10%
+
+<返回/@manage>
+
+[@tax15]
+#ACT
+SETCASTLETAX 15
+SENDMSG 0 沙巴克城税率已调整为15%
+#SAY
+税率已调整为 15%
+
+<返回/@manage>
+
+[@tax20]
+#ACT
+SETCASTLETAX 20
+SENDMSG 0 沙巴克城税率已调整为20%
+#SAY
+税率已调整为 20%
+
+<返回/@manage>
+
+[@tax25]
+#ACT
+SETCASTLETAX 25
+SENDMSG 0 沙巴克城税率已调整为25%
+#SAY
+税率已调整为 25%
+
+<返回/@manage>
+
+[@tax30]
+#ACT
+SETCASTLETAX 30
+SENDMSG 0 沙巴克城税率已调整为30%
+#SAY
+税率已调整为 30%
+
+<返回/@manage>
+
+[@repairgate]
+#IF
+CHECKGOLD 100000
+#ACT
+TAKE 金币 100000
+REPAIRCASTLEGATE
+#SAY
+城门已修复！
+
+花费: 100,000 金币
+
+<返回/@manage>
+#ELSEACT
+MESSAGEBOX 修复城门需要100,000金币！
+GOTO @manage
+
+[@hireguard]
+#SAY
+守卫雇佣功能开发中...
+
+<返回/@manage>
+
+[@upgrade]
+#SAY
+城堡升级功能开发中...
+
+<返回/@manage>
+
+[@exit]
+#ACT
+CLOSE
