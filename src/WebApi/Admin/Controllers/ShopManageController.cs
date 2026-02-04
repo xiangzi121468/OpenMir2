@@ -488,6 +488,200 @@ namespace WebApi.Admin.Controllers
 
         #endregion
 
+        #region 充值档位管理
+
+        /// <summary>
+        /// 获取充值档位列表
+        /// </summary>
+        [HttpGet("recharge/packages")]
+        public async Task<IActionResult> GetRechargePackages()
+        {
+            try
+            {
+                using var conn = new MySqlConnection(_connectionString);
+                await conn.OpenAsync();
+
+                using var cmd = new MySqlCommand("SELECT * FROM recharge_packages ORDER BY Amount", conn);
+                var list = new List<object>();
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    list.Add(new
+                    {
+                        Id = reader.GetInt32("Id"),
+                        Name = reader.GetString("Name"),
+                        Amount = reader.GetDecimal("Amount"),
+                        GameGold = reader.GetInt32("GameGold"),
+                        BonusGold = reader.GetInt32("BonusGold"),
+                        FirstBonusGold = reader.IsDBNull(reader.GetOrdinal("FirstBonusGold")) ? 0 : reader.GetInt32("FirstBonusGold"),
+                        BonusItems = reader.IsDBNull(reader.GetOrdinal("BonusItems")) ? null : reader.GetString("BonusItems"),
+                        IsHot = reader.GetBoolean("IsHot"),
+                        IsEnabled = reader.GetBoolean("IsEnabled"),
+                        SortOrder = reader.GetInt32("SortOrder"),
+                        Description = reader.IsDBNull(reader.GetOrdinal("Description")) ? null : reader.GetString("Description")
+                    });
+                }
+
+                return Ok(ApiResult.Success(list));
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "获取充值档位失败");
+                return Ok(ApiResult.Fail("查询失败"));
+            }
+        }
+
+        /// <summary>
+        /// 添加充值档位
+        /// </summary>
+        [HttpPost("recharge/packages")]
+        public async Task<IActionResult> AddRechargePackage([FromBody] RechargePackageRequest request)
+        {
+            if (!IsAdmin)
+                return Ok(ApiResult.Fail("权限不足"));
+
+            try
+            {
+                using var conn = new MySqlConnection(_connectionString);
+                await conn.OpenAsync();
+
+                using var cmd = new MySqlCommand(@"
+                    INSERT INTO recharge_packages (Name, Amount, GameGold, BonusGold, FirstBonusGold, BonusItems, IsHot, IsEnabled, SortOrder, Description, CreateTime)
+                    VALUES (@Name, @Amount, @GameGold, @BonusGold, @FirstBonusGold, @BonusItems, @IsHot, @IsEnabled, @SortOrder, @Description, NOW())", conn);
+
+                cmd.Parameters.AddWithValue("@Name", request.Name);
+                cmd.Parameters.AddWithValue("@Amount", request.Amount);
+                cmd.Parameters.AddWithValue("@GameGold", request.GameGold);
+                cmd.Parameters.AddWithValue("@BonusGold", request.BonusGold);
+                cmd.Parameters.AddWithValue("@FirstBonusGold", request.FirstBonusGold);
+                cmd.Parameters.AddWithValue("@BonusItems", request.BonusItems ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@IsHot", request.IsHot);
+                cmd.Parameters.AddWithValue("@IsEnabled", request.IsEnabled);
+                cmd.Parameters.AddWithValue("@SortOrder", request.SortOrder);
+                cmd.Parameters.AddWithValue("@Description", request.Description ?? (object)DBNull.Value);
+
+                await cmd.ExecuteNonQueryAsync();
+
+                await _adminService.LogActionAsync(CurrentAdminId, CurrentAdminName, "shop", "add_package",
+                    request.Name, $"添加充值档位: {request.Amount}元={request.GameGold}元宝", ClientIp);
+
+                return Ok(ApiResult.Success("添加成功"));
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "添加充值档位失败");
+                return Ok(ApiResult.Fail("添加失败"));
+            }
+        }
+
+        /// <summary>
+        /// 更新充值档位
+        /// </summary>
+        [HttpPut("recharge/packages/{id}")]
+        public async Task<IActionResult> UpdateRechargePackage(int id, [FromBody] RechargePackageRequest request)
+        {
+            if (!IsAdmin)
+                return Ok(ApiResult.Fail("权限不足"));
+
+            try
+            {
+                using var conn = new MySqlConnection(_connectionString);
+                await conn.OpenAsync();
+
+                using var cmd = new MySqlCommand(@"
+                    UPDATE recharge_packages SET 
+                        Name=@Name, Amount=@Amount, GameGold=@GameGold, BonusGold=@BonusGold, 
+                        FirstBonusGold=@FirstBonusGold, BonusItems=@BonusItems,
+                        IsHot=@IsHot, IsEnabled=@IsEnabled, SortOrder=@SortOrder, Description=@Description,
+                        UpdateTime=NOW()
+                    WHERE Id=@Id", conn);
+
+                cmd.Parameters.AddWithValue("@Id", id);
+                cmd.Parameters.AddWithValue("@Name", request.Name);
+                cmd.Parameters.AddWithValue("@Amount", request.Amount);
+                cmd.Parameters.AddWithValue("@GameGold", request.GameGold);
+                cmd.Parameters.AddWithValue("@BonusGold", request.BonusGold);
+                cmd.Parameters.AddWithValue("@FirstBonusGold", request.FirstBonusGold);
+                cmd.Parameters.AddWithValue("@BonusItems", request.BonusItems ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@IsHot", request.IsHot);
+                cmd.Parameters.AddWithValue("@IsEnabled", request.IsEnabled);
+                cmd.Parameters.AddWithValue("@SortOrder", request.SortOrder);
+                cmd.Parameters.AddWithValue("@Description", request.Description ?? (object)DBNull.Value);
+
+                await cmd.ExecuteNonQueryAsync();
+
+                await _adminService.LogActionAsync(CurrentAdminId, CurrentAdminName, "shop", "update_package",
+                    id.ToString(), $"更新充值档位: {request.Amount}元", ClientIp);
+
+                return Ok(ApiResult.Success("更新成功"));
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "更新充值档位失败");
+                return Ok(ApiResult.Fail("更新失败"));
+            }
+        }
+
+        /// <summary>
+        /// 删除充值档位
+        /// </summary>
+        [HttpDelete("recharge/packages/{id}")]
+        public async Task<IActionResult> DeleteRechargePackage(int id)
+        {
+            if (!IsSuperAdmin)
+                return Ok(ApiResult.Fail("需要超级管理员权限"));
+
+            try
+            {
+                using var conn = new MySqlConnection(_connectionString);
+                await conn.OpenAsync();
+
+                using var cmd = new MySqlCommand("DELETE FROM recharge_packages WHERE Id=@Id", conn);
+                cmd.Parameters.AddWithValue("@Id", id);
+                await cmd.ExecuteNonQueryAsync();
+
+                await _adminService.LogActionAsync(CurrentAdminId, CurrentAdminName, "shop", "delete_package",
+                    id.ToString(), "删除充值档位", ClientIp);
+
+                return Ok(ApiResult.Success("删除成功"));
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "删除充值档位失败");
+                return Ok(ApiResult.Fail("删除失败"));
+            }
+        }
+
+        /// <summary>
+        /// 启用/禁用充值档位
+        /// </summary>
+        [HttpPost("recharge/packages/{id}/toggle")]
+        public async Task<IActionResult> ToggleRechargePackage(int id, [FromQuery] bool enabled)
+        {
+            if (!IsAdmin)
+                return Ok(ApiResult.Fail("权限不足"));
+
+            try
+            {
+                using var conn = new MySqlConnection(_connectionString);
+                await conn.OpenAsync();
+
+                using var cmd = new MySqlCommand("UPDATE recharge_packages SET IsEnabled=@Enabled, UpdateTime=NOW() WHERE Id=@Id", conn);
+                cmd.Parameters.AddWithValue("@Id", id);
+                cmd.Parameters.AddWithValue("@Enabled", enabled);
+                await cmd.ExecuteNonQueryAsync();
+
+                return Ok(ApiResult.Success(enabled ? "已启用" : "已禁用"));
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "切换充值档位状态失败");
+                return Ok(ApiResult.Fail("操作失败"));
+            }
+        }
+
+        #endregion
+
         #region 工具方法
 
         private void AddPagedParams(MySqlCommand cmd, PagedRequest request)
@@ -560,5 +754,19 @@ namespace WebApi.Admin.Controllers
         public List<ShopModule.Models.GiftCodeItem> Items { get; set; }
         public int Count { get; set; }
         public DateTime? EndTime { get; set; }
+    }
+
+    public class RechargePackageRequest
+    {
+        public string Name { get; set; }
+        public decimal Amount { get; set; }
+        public int GameGold { get; set; }
+        public int BonusGold { get; set; }
+        public int FirstBonusGold { get; set; }
+        public string? BonusItems { get; set; }
+        public bool IsHot { get; set; }
+        public bool IsEnabled { get; set; } = true;
+        public int SortOrder { get; set; }
+        public string? Description { get; set; }
     }
 }
