@@ -1,0 +1,143 @@
+; ============================================
+; VIP大厅传送员 NPC脚本示例
+; 放置位置: Envir\QuestDiary\NPC名称.txt
+; ============================================
+
+[@main]
+#IF
+#ACT
+OPENMERCHANTBIGDLG  550 450 0 1,1,1,1
+BIGHINTSHOW  <Title/FCOLOR=249>贵族VIP大厅</Title>
+BIGHINTSHOW
+BIGHINTSHOW  <怪物：><FCOLOR=250>陈天桥老婆</FCOLOR>【<FCOLOR=249>免费挖倚天武器</FCOLOR>】以及其他BOSS...
+BIGHINTSHOW  <刷新：>30分刷新  陈天桥老婆120分钟刷新...
+BIGHINTSHOW  <爆出：><FCOLOR=250>王者、炎龙、金牛装备、恐龙蛋</FCOLOR>...
+BIGHINTSHOW  <条件：><FCOLOR=249>充值30及以上免费进入</FCOLOR>...
+BIGHINTSHOW
+BIGHINTSHOW  <随机进入/@随机进入>         <定点进入/@定点进入>         <不去.../@exit>
+
+; ============================================
+; 随机进入
+; ============================================
+[@随机进入]
+#IF
+CHECKMEMBERLEVEL >= 1
+#ACT
+GOTO @执行随机进入
+#ELSEACT
+GOTO @检查充值金额_随机
+
+[@检查充值金额_随机]
+#IF
+CHECKGAMEGOLD >= 3000
+#ACT
+GOTO @执行随机进入
+#ELSEACT
+MESSAGEBOX 您的VIP等级不足或充值金额未达到30元，无法进入贵族大厅！
+
+[@执行随机进入]
+#IF
+CHECKLEVEL >= 35
+CHECKBAGGAGE
+#ACT
+; 随机坐标进入VIP地图
+MOV P0 <$RANDOM(100)>
+MOV P1 <$RANDOM(100)>
+INC P0 100
+INC P1 100
+MAPMOVE VIPHALL1 <$STR(P0)> <$STR(P1)>
+SENDMSG 5 【贵族VIP大厅】欢迎 <$USERNAME> 进入贵族大厅！祝您爆装愉快！
+#ELSEACT
+#IF
+CHECKLEVEL < 35
+#ACT
+MESSAGEBOX 进入贵族大厅需要35级以上！
+#ELSEACT
+MESSAGEBOX 背包已满，请清理后再进入！
+
+; ============================================
+; 定点进入
+; ============================================
+[@定点进入]
+#IF
+CHECKMEMBERLEVEL >= 1
+#ACT
+GOTO @执行定点进入
+#ELSEACT
+GOTO @检查充值金额_定点
+
+[@检查充值金额_定点]
+#IF
+CHECKGAMEGOLD >= 3000
+#ACT
+GOTO @执行定点进入
+#ELSEACT
+MESSAGEBOX 您的VIP等级不足或充值金额未达到30元，无法进入贵族大厅！
+
+[@执行定点进入]
+#IF
+CHECKLEVEL >= 35
+CHECKBAGGAGE
+#ACT
+MAPMOVE VIPHALL1 150 150
+SENDMSG 5 【贵族VIP大厅】欢迎 <$USERNAME> 进入贵族大厅！祝您爆装愉快！
+#ELSEACT
+#IF
+CHECKLEVEL < 35
+#ACT
+MESSAGEBOX 进入贵族大厅需要35级以上！
+#ELSEACT
+MESSAGEBOX 背包已满，请清理后再进入！
+
+
+; ============================================
+; 黄金VIP殿堂入口 (可选扩展)
+; ============================================
+[@黄金VIP入口]
+#IF
+#ACT
+OPENMERCHANTBIGDLG  550 400 0 1,1,1,1
+BIGHINTSHOW  <Title/FCOLOR=254>黄金VIP殿堂</Title>
+BIGHINTSHOW
+BIGHINTSHOW  <怪物：><FCOLOR=250>黄金教主</FCOLOR>【终极BOSS】
+BIGHINTSHOW  <刷新：>90分钟刷新一只
+BIGHINTSHOW  <爆出：><FCOLOR=249>屠龙、裁决、龙纹剑</FCOLOR>
+BIGHINTSHOW  <条件：><FCOLOR=254>充值100元及以上，每日限进3次</FCOLOR>
+BIGHINTSHOW
+BIGHINTSHOW  <进入殿堂/@进入黄金殿堂>                    <返回/@main>
+
+[@进入黄金殿堂]
+#IF
+CHECKMEMBERLEVEL >= 2
+CHECKLEVEL >= 40
+#ACT
+MAPMOVE VIPHALL2 150 150
+SENDMSG 5 【黄金VIP殿堂】欢迎 <$USERNAME> 进入黄金殿堂！
+#ELSEACT
+MESSAGEBOX 进入黄金VIP殿堂需要VIP2等级(充值100元)且角色40级以上！
+
+; ============================================
+; 钻石VIP圣殿入口 (可选扩展)
+; ============================================
+[@钻石VIP入口]
+#IF
+#ACT
+OPENMERCHANTBIGDLG  550 400 0 1,1,1,1
+BIGHINTSHOW  <Title/FCOLOR=253>钻石VIP圣殿</Title>
+BIGHINTSHOW
+BIGHINTSHOW  <怪物：><FCOLOR=250>钻石龙王</FCOLOR>【神级BOSS】
+BIGHINTSHOW  <刷新：>180分钟刷新一只
+BIGHINTSHOW  <爆出：><FCOLOR=253>神装全套、终极神器</FCOLOR>
+BIGHINTSHOW  <条件：><FCOLOR=253>充值500元及以上，每日限进2次</FCOLOR>
+BIGHINTSHOW
+BIGHINTSHOW  <进入圣殿/@进入钻石圣殿>                    <返回/@main>
+
+[@进入钻石圣殿]
+#IF
+CHECKMEMBERLEVEL >= 3
+CHECKLEVEL >= 45
+#ACT
+MAPMOVE VIPHALL3 150 150
+SENDMSG 5 【钻石VIP圣殿】欢迎 <$USERNAME> 进入钻石圣殿！神装在等着您！
+#ELSEACT
+MESSAGEBOX 进入钻石VIP圣殿需要VIP3等级(充值500元)且角色45级以上！

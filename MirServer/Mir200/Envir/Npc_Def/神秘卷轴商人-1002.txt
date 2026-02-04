@@ -1,0 +1,283 @@
+; ============================================
+; 神秘卷轴商人 NPC脚本
+; 功能：卷轴购买、装备鉴定、属性解读
+; 放置位置: Envir\QuestDiary\神秘卷轴商人.txt
+; ============================================
+
+[@main]
+#IF
+#ACT
+OPENMERCHANTBIGDLG 650 480 0 1,1,1,1
+BIGHINTSHOW  <神秘属性可解读出→><FCOLOR=249>重生神技、八卦护身、麻痹神技、魔道麻痹</FCOLOR>
+BIGHINTSHOW  <FCOLOR=250>鉴定装备</FCOLOR>  <FCOLOR=249>神秘解读</FCOLOR>  <战意麻痹、探测技能、传送神技><FCOLOR=250>金刚石购卷</FCOLOR>
+BIGHINTSHOW  
+BIGHINTSHOW  <一级卷轴>  <FCOLOR=249>1000元宝购买1个/@购买一级卷轴1>      <一级卷轴>  <FCOLOR=249>10000元宝购买10个/@购买一级卷轴10>
+BIGHINTSHOW  <二级卷轴>  <FCOLOR=249>1200元宝购买1个/@购买二级卷轴1>      <二级卷轴>  <FCOLOR=249>12000元宝购买10个/@购买二级卷轴10>
+BIGHINTSHOW  <三级卷轴>  <FCOLOR=249>1500元宝购买1个/@购买三级卷轴1>      <三级卷轴>  <FCOLOR=249>15000元宝购买10个/@购买三级卷轴10>
+BIGHINTSHOW  <幸运符  >  <FCOLOR=249>1000元宝购买1个/@购买幸运符1>        <幸运符  >  <FCOLOR=249>10000元宝购买10个/@购买幸运符10>
+BIGHINTSHOW  <神秘卷轴>  <FCOLOR=249>1000元宝购买1个/@购买神秘卷轴1>      <神秘卷轴>  <FCOLOR=249>10000元宝购买10个/@购买神秘卷轴10>
+BIGHINTSHOW  
+BIGHINTSHOW                  <FCOLOR=250>鉴定属性转移/@属性转移</FCOLOR>                    <FCOLOR=250>鉴定最新通知/@最新通知</FCOLOR>
+
+; ============================================
+; 一级卷轴购买
+; ============================================
+[@购买一级卷轴1]
+#IF
+CHECKGAMEGOLD >= 1000
+CHECKBAGSIZE 1
+#ACT
+GAMEGOLD - 1000
+GIVE 一级卷轴 1
+SENDMSG 5 恭喜 <$USERNAME> 购买了1个一级卷轴！
+GOTO @main
+#ELSEACT
+#IF
+CHECKGAMEGOLD < 1000
+#ACT
+MESSAGEBOX 元宝不足！购买1个一级卷轴需要1000元宝。
+#ELSEACT
+MESSAGEBOX 背包空间不足，请清理后再购买！
+
+[@购买一级卷轴10]
+#IF
+CHECKGAMEGOLD >= 10000
+CHECKBAGSIZE 1
+#ACT
+GAMEGOLD - 10000
+GIVE 一级卷轴 10
+SENDMSG 5 恭喜 <$USERNAME> 批量购买了10个一级卷轴！
+GOTO @main
+#ELSEACT
+#IF
+CHECKGAMEGOLD < 10000
+#ACT
+MESSAGEBOX 元宝不足！批量购买10个一级卷轴需要10000元宝。
+#ELSEACT
+MESSAGEBOX 背包空间不足，请清理后再购买！
+
+; ============================================
+; 二级卷轴购买
+; ============================================
+[@购买二级卷轴1]
+#IF
+CHECKGAMEGOLD >= 1200
+CHECKBAGSIZE 1
+#ACT
+GAMEGOLD - 1200
+GIVE 二级卷轴 1
+SENDMSG 5 恭喜 <$USERNAME> 购买了1个二级卷轴！
+GOTO @main
+#ELSEACT
+#IF
+CHECKGAMEGOLD < 1200
+#ACT
+MESSAGEBOX 元宝不足！购买1个二级卷轴需要1200元宝。
+#ELSEACT
+MESSAGEBOX 背包空间不足，请清理后再购买！
+
+[@购买二级卷轴10]
+#IF
+CHECKGAMEGOLD >= 12000
+CHECKBAGSIZE 1
+#ACT
+GAMEGOLD - 12000
+GIVE 二级卷轴 10
+SENDMSG 5 恭喜 <$USERNAME> 批量购买了10个二级卷轴！
+GOTO @main
+#ELSEACT
+#IF
+CHECKGAMEGOLD < 12000
+#ACT
+MESSAGEBOX 元宝不足！批量购买10个二级卷轴需要12000元宝。
+#ELSEACT
+MESSAGEBOX 背包空间不足，请清理后再购买！
+
+; ============================================
+; 三级卷轴购买
+; ============================================
+[@购买三级卷轴1]
+#IF
+CHECKGAMEGOLD >= 1500
+CHECKBAGSIZE 1
+#ACT
+GAMEGOLD - 1500
+GIVE 三级卷轴 1
+SENDMSG 5 恭喜 <$USERNAME> 购买了1个三级卷轴！
+GOTO @main
+#ELSEACT
+#IF
+CHECKGAMEGOLD < 1500
+#ACT
+MESSAGEBOX 元宝不足！购买1个三级卷轴需要1500元宝。
+#ELSEACT
+MESSAGEBOX 背包空间不足，请清理后再购买！
+
+[@购买三级卷轴10]
+#IF
+CHECKGAMEGOLD >= 15000
+CHECKBAGSIZE 1
+#ACT
+GAMEGOLD - 15000
+GIVE 三级卷轴 10
+SENDMSG 5 恭喜 <$USERNAME> 批量购买了10个三级卷轴！
+GOTO @main
+#ELSEACT
+#IF
+CHECKGAMEGOLD < 15000
+#ACT
+MESSAGEBOX 元宝不足！批量购买10个三级卷轴需要15000元宝。
+#ELSEACT
+MESSAGEBOX 背包空间不足，请清理后再购买！
+
+; ============================================
+; 幸运符购买
+; ============================================
+[@购买幸运符1]
+#IF
+CHECKGAMEGOLD >= 1000
+CHECKBAGSIZE 1
+#ACT
+GAMEGOLD - 1000
+GIVE 幸运符 1
+SENDMSG 5 恭喜 <$USERNAME> 购买了1个幸运符！
+GOTO @main
+#ELSEACT
+#IF
+CHECKGAMEGOLD < 1000
+#ACT
+MESSAGEBOX 元宝不足！购买1个幸运符需要1000元宝。
+#ELSEACT
+MESSAGEBOX 背包空间不足，请清理后再购买！
+
+[@购买幸运符10]
+#IF
+CHECKGAMEGOLD >= 10000
+CHECKBAGSIZE 1
+#ACT
+GAMEGOLD - 10000
+GIVE 幸运符 10
+SENDMSG 5 恭喜 <$USERNAME> 批量购买了10个幸运符！
+GOTO @main
+#ELSEACT
+#IF
+CHECKGAMEGOLD < 10000
+#ACT
+MESSAGEBOX 元宝不足！批量购买10个幸运符需要10000元宝。
+#ELSEACT
+MESSAGEBOX 背包空间不足，请清理后再购买！
+
+; ============================================
+; 神秘卷轴购买
+; ============================================
+[@购买神秘卷轴1]
+#IF
+CHECKGAMEGOLD >= 1000
+CHECKBAGSIZE 1
+#ACT
+GAMEGOLD - 1000
+GIVE 神秘卷轴 1
+SENDMSG 5 恭喜 <$USERNAME> 购买了1个神秘卷轴！
+GOTO @main
+#ELSEACT
+#IF
+CHECKGAMEGOLD < 1000
+#ACT
+MESSAGEBOX 元宝不足！购买1个神秘卷轴需要1000元宝。
+#ELSEACT
+MESSAGEBOX 背包空间不足，请清理后再购买！
+
+[@购买神秘卷轴10]
+#IF
+CHECKGAMEGOLD >= 10000
+CHECKBAGSIZE 1
+#ACT
+GAMEGOLD - 10000
+GIVE 神秘卷轴 10
+SENDMSG 5 恭喜 <$USERNAME> 批量购买了10个神秘卷轴！
+GOTO @main
+#ELSEACT
+#IF
+CHECKGAMEGOLD < 10000
+#ACT
+MESSAGEBOX 元宝不足！批量购买10个神秘卷轴需要10000元宝。
+#ELSEACT
+MESSAGEBOX 背包空间不足，请清理后再购买！
+
+; ============================================
+; 属性转移功能
+; ============================================
+[@属性转移]
+#IF
+#ACT
+OPENMERCHANTBIGDLG 550 350 0 1,1,1,1
+BIGHINTSHOW  <Title/FCOLOR=250>装备属性转移</Title>
+BIGHINTSHOW  
+BIGHINTSHOW  将一件装备的<FCOLOR=249>鉴定属性</FCOLOR>转移到另一件装备上
+BIGHINTSHOW  
+BIGHINTSHOW  <FCOLOR=250>转移规则：</FCOLOR>
+BIGHINTSHOW  1. 源装备和目标装备必须是同类型
+BIGHINTSHOW  2. 转移需要消耗<FCOLOR=249>1个属性转移石</FCOLOR>
+BIGHINTSHOW  3. 转移成功后源装备属性会消失
+BIGHINTSHOW  4. 有5%几率转移失败，属性消失
+BIGHINTSHOW  
+BIGHINTSHOW       <FCOLOR=249>开始转移/@开始属性转移</FCOLOR>        <返回/@main>
+
+[@开始属性转移]
+#IF
+CHECKITEM 属性转移石 1
+#ACT
+; 打开装备放置界面
+UPGRADEITEMSDLG 1 属性转移
+#ELSEACT
+MESSAGEBOX 您没有属性转移石！请先购买属性转移石。
+
+; ============================================
+; 最新通知
+; ============================================
+[@最新通知]
+#IF
+#ACT
+OPENMERCHANTBIGDLG 550 400 0 1,1,1,1
+BIGHINTSHOW  <Title/FCOLOR=250>鉴定最新通知</Title>
+BIGHINTSHOW  
+BIGHINTSHOW  <FCOLOR=249>恭喜 勇士小明 鉴定获得 麻痹神技+3</FCOLOR>
+BIGHINTSHOW  <FCOLOR=249>恭喜 战神无双 鉴定获得 重生神技+2</FCOLOR>
+BIGHINTSHOW  <FCOLOR=249>恭喜 霸王别姬 鉴定获得 八卦护身+5</FCOLOR>
+BIGHINTSHOW  <FCOLOR=249>恭喜 天下第一 鉴定获得 传送神技+1</FCOLOR>
+BIGHINTSHOW  <FCOLOR=249>恭喜 剑走偏锋 鉴定获得 探测技能+4</FCOLOR>
+BIGHINTSHOW  <FCOLOR=249>恭喜 风云再起 鉴定获得 战意麻痹+2</FCOLOR>
+BIGHINTSHOW  
+BIGHINTSHOW  使用卷轴鉴定装备，有机会获得以上神秘属性！
+BIGHINTSHOW  
+BIGHINTSHOW                            <返回/@main>
+
+
+; ============================================
+; 装备鉴定功能 (需要配合鉴定系统)
+; ============================================
+[@鉴定装备]
+#IF
+#ACT
+OPENMERCHANTBIGDLG 600 400 0 1,1,1,1
+BIGHINTSHOW  <Title/FCOLOR=250>装备鉴定</Title>
+BIGHINTSHOW  
+BIGHINTSHOW  将装备放入鉴定栏，消耗对应卷轴进行鉴定
+BIGHINTSHOW  
+BIGHINTSHOW  <FCOLOR=250>鉴定成功可获得以下属性之一：</FCOLOR>
+BIGHINTSHOW  <FCOLOR=249>重生神技</FCOLOR> - 死亡后原地复活
+BIGHINTSHOW  <FCOLOR=249>八卦护身</FCOLOR> - 格挡物理伤害
+BIGHINTSHOW  <FCOLOR=249>麻痹神技</FCOLOR> - 攻击有几率麻痹敌人
+BIGHINTSHOW  <FCOLOR=249>魔道麻痹</FCOLOR> - 魔法攻击麻痹敌人
+BIGHINTSHOW  <FCOLOR=249>战意麻痹</FCOLOR> - 道术攻击麻痹敌人
+BIGHINTSHOW  <FCOLOR=249>探测技能</FCOLOR> - 探测周围隐身玩家
+BIGHINTSHOW  <FCOLOR=249>传送神技</FCOLOR> - 随机传送躲避攻击
+BIGHINTSHOW  
+BIGHINTSHOW  <开始鉴定/@开始鉴定>                  <返回/@main>
+
+[@开始鉴定]
+#IF
+#ACT
+; 打开鉴定界面
+UPGRADEITEMSDLG 2 装备鉴定
+; 实际鉴定逻辑由脚本引擎处理
