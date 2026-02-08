@@ -1,0 +1,155 @@
+# OpenMir2 Docker Compose 配置
+# 使用方法: docker-compose up -d
+
+version: '3.8'
+
+services:
+  # ============================================
+  # MySQL 数据库
+  # ============================================
+  mysql:
+    image: mysql:8.0
+    container_name: openmir2-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-openmir2_root_pwd}
+      MYSQL_DATABASE: mir2_db
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./sql:/docker-entrypoint-initdb.d:ro
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --max_allowed_packet=512M
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - openmir2-network
+
+  # ============================================
+  # DBSrv - 数据库服务
+  # ============================================
+  dbsrv:
+    build:
+      context: .
+      target: dbsrv
+    container_name: openmir2-dbsrv
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-openmir2_root_pwd}
+      DB_DATABASE: mir2_db
+    ports:
+      - "6000:6000"
+    networks:
+      - openmir2-network
+
+  # ============================================
+  # LoginSrv - 登录服务
+  # ============================================
+  loginsrv:
+    build:
+      context: .
+      target: loginsrv
+    container_name: openmir2-loginsrv
+    restart: always
+    depends_on:
+      - dbsrv
+    environment:
+      DBSRV_HOST: dbsrv
+      DBSRV_PORT: 6000
+    ports:
+      - "7000:7000"
+    networks:
+      - openmir2-network
+
+  # ============================================
+  # GameSrv - 游戏服务
+  # ============================================
+  gamesrv:
+    build:
+      context: .
+      target: gamesrv
+    container_name: openmir2-gamesrv
+    restart: always
+    depends_on:
+      - dbsrv
+      - loginsrv
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-openmir2_root_pwd}
+      DBSRV_HOST: dbsrv
+      DBSRV_PORT: 6000
+    ports:
+      - "7100:7100"
+    volumes:
+      - ./MirServer/Mir200/Envir:/app/Envir:ro
+    networks:
+      - openmir2-network
+
+  # ============================================
+  # WebApi - API服务
+  # ============================================
+  webapi:
+    build:
+      context: .
+      target: webapi
+    container_name: openmir2-webapi
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Server=mysql;Database=mir2_db;User=root;Password=${MYSQL_ROOT_PASSWORD:-openmir2_root_pwd};"
+      ConnectionStrings__GameDataConnection: "Server=mysql;Database=mir2_data;User=root;Password=${MYSQL_ROOT_PASSWORD:-openmir2_root_pwd};"
+      ConnectionStrings__AccountConnection: "Server=mysql;Database=mir2_account;User=root;Password=${MYSQL_ROOT_PASSWORD:-openmir2_root_pwd};"
+      Jwt__Secret: ${JWT_SECRET:-openmir2_jwt_secret_key_at_least_32_chars}
+    ports:
+      - "5000:5000"
+    networks:
+      - openmir2-network
+
+  # ============================================
+  # Nginx 反向代理 (可选)
+  # ============================================
+  nginx:
+    image: nginx:alpine
+    container_name: openmir2-nginx
+    restart: always
+    depends_on:
+      - webapi
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+    networks:
+      - openmir2-network
+    profiles:
+      - with-nginx
+
+# ============================================
+# 数据卷
+# ============================================
+volumes:
+  mysql_data:
+    driver: local
+
+# ============================================
+# 网络
+# ============================================
+networks:
+  openmir2-network:
+    driver: bridge
